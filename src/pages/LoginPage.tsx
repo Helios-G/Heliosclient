@@ -20,14 +20,18 @@ export function LoginPage() {
     
     // 실제로는 API 호출하여 인증
     // 여기서는 테스트를 위해 임시 데이터 사용
+    // admin@helios.com으로 로그인하면 관리자 권한 부여
+    const isAdminUser = formData.email === "admin@helios.com";
+    
     const mockHospitalData = {
-      id: "H001",
-      name: "서울중앙병원",
+      id: isAdminUser ? "ADMIN" : "H001",
+      name: isAdminUser ? "HELIOS 관리자" : "서울중앙병원",
       email: formData.email,
       businessNumber: "123-45-67890",
       phone: "02-1234-5678",
       address: "서울특별시 강남구 테헤란로 123",
-      managerName: "홍길동"
+      managerName: isAdminUser ? "시스템 관리자" : "홍길동",
+      isAdmin: isAdminUser
     };
 
     login(mockHospitalData);

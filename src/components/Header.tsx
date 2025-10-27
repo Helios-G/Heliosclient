@@ -13,7 +13,7 @@ import {
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoggedIn, hospital, logout } = useAuth();
+  const { isLoggedIn, hospital, isAdmin, logout } = useAuth();
 
   const handleSectionClick = (sectionId: string) => {
     // 홈페이지가 아니면 먼저 홈으로 이동
@@ -114,6 +114,18 @@ export function Header() {
                 >
                   대시보드
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => navigate('/admin')}
+                      className="cursor-pointer"
+                      style={{ color: '#FF9500' }}
+                    >
+                      관리자 페이지
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   onClick={handleLogout}

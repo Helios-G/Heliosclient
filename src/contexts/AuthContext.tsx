@@ -8,11 +8,13 @@ interface Hospital {
   phone: string;
   address: string;
   managerName: string;
+  isAdmin?: boolean;
 }
 
 interface AuthContextType {
   isLoggedIn: boolean;
   hospital: Hospital | null;
+  isAdmin: boolean;
   login: (hospitalData: Hospital) => void;
   logout: () => void;
   updateHospital: (hospitalData: Hospital) => void;
@@ -23,6 +25,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [hospital, setHospital] = useState<Hospital | null>(null);
+  const isAdmin = hospital?.isAdmin || false;
 
   const login = (hospitalData: Hospital) => {
     setIsLoggedIn(true);
@@ -43,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, hospital, login, logout, updateHospital }}>
+    <AuthContext.Provider value={{ isLoggedIn, hospital, isAdmin, login, logout, updateHospital }}>
       {children}
     </AuthContext.Provider>
   );
