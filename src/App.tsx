@@ -8,6 +8,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { MyPage } from "./pages/MyPage";
 import { SessionListPage } from "./pages/SessionListPage";
 import { SessionCreatePage } from "./pages/SessionCreatePage";
+import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { SessionJoinPage } from "./pages/SessionJoinPage";
 import { LabelingAutoPage } from "./pages/LabelingAutoPage";
 import { LabelingManualPage } from "./pages/LabelingManualPage";
@@ -29,7 +30,9 @@ export default function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/mypage" element={<MyPage />} />
             <Route path="/upload" element={<SessionListPage />} />
+            <Route path="/session/list" element={<SessionListPage />} />
             <Route path="/session/create" element={<SessionCreatePage />} />
+            <Route path="/session/:sessionId" element={<SessionDetailPage />} />
             <Route path="/session/:sessionId/join" element={<SessionJoinPage />} />
             <Route path="/session/:sessionId/labeling/auto" element={<LabelingAutoPage />} />
             <Route path="/session/:sessionId/labeling/manual" element={<LabelingManualPage />} />
