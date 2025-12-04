@@ -1,301 +1,279 @@
-# 🏥 HELIOS 로컬 환경 설정 가이드
+# HELIOS 로컬 설치 및 실행 가이드
 
-이 프로젝트를 로컬 환경에서 실행하기 위한 완전한 가이드입니다.
+HELIOS 연합학습 플랫폼을 로컬 환경에서 실행하는 방법입니다.
 
 ## 📋 사전 요구사항
 
-- Node.js 18.x 이상
-- npm 또는 yarn
+- **Node.js**: 18.x 이상 (권장: 20.x)
+- **npm**: 9.x 이상 (Node.js와 함께 설치됨)
 
-## 🚀 빠른 시작
+Node.js가 설치되어 있지 않다면 [https://nodejs.org/](https://nodejs.org/)에서 다운로드하세요.
 
-### 1️⃣ 파일 구조 확인
+## 🚀 설치 및 실행 방법
 
-현재 파일들이 루트 디렉토리에 있다면, 다음과 같이 `src` 폴더로 이동해야 합니다:
+### 1. 프로젝트 다운로드
 
-```
-프로젝트 루트/
-├── index.html              # 루트에 위치
-├── package.json            # 루트에 위치
-├── vite.config.ts          # 루트에 위치
-├── tsconfig.json           # 루트에 위치
-├── eslint.config.js        # 루트에 위치
-├── .gitignore              # 루트에 위치
-├── README.md               # 루트에 위치
-└── src/                    # ⬅️ 이 폴더 안에 소스 코드
-    ├── main.tsx            # 새로 생성된 엔트리 포인트
-    ├── App.tsx
-    ├── components/
-    ├── contexts/
-    ├── pages/
-    ├── styles/
-    └── guidelines/
-```
+GitHub에서 프로젝트를 다운로드하거나 클론합니다:
 
-### 2️⃣ 파일 이동 (필요한 경우)
-
-만약 `App.tsx`, `components/`, `pages/` 등이 루트에 있다면:
-
-**Linux/Mac:**
 ```bash
-# src 폴더가 없다면 생성
-mkdir -p src
+# Git을 사용하는 경우
+git clone <repository-url>
+cd helios
 
-# 파일들을 src로 이동
-mv App.tsx src/
-mv components src/
-mv contexts src/
-mv pages src/
-mv styles src/
+# 또는 ZIP 파일을 다운로드하여 압축 해제 후 해당 폴더로 이동
 ```
 
-**Windows (PowerShell):**
-```powershell
-# src 폴더 생성
-New-Item -ItemType Directory -Force -Path src
+### 2. 의존성 패키지 설치
 
-# 파일들을 src로 이동
-Move-Item -Path App.tsx -Destination src/
-Move-Item -Path components -Destination src/
-Move-Item -Path contexts -Destination src/
-Move-Item -Path pages -Destination src/
-Move-Item -Path styles -Destination src/
+#### 자동 설치 (권장)
+
+**Windows 사용자:**
+```cmd
+setup.bat
 ```
+명령 프롬프트(CMD)를 열고 프로젝트 폴더에서 `setup.bat`를 실행하거나 파일을 더블클릭하세요.
 
-**또는 수동으로:**
-1. `src` 폴더를 생성합니다
-2. `App.tsx`, `components/`, `contexts/`, `pages/`, `styles/` 폴더를 `src/` 안으로 이동합니다
-3. `guidelines/` 폴더는 `src/` 안으로 이동 (선택사항)
+**Mac/Linux 사용자:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+터미널을 열고 프로젝트 폴더에서 위 명령어를 실행하세요.
 
-### 3️⃣ 의존성 설치
+#### 수동 설치
+
+자동 설치가 작동하지 않는 경우:
 
 ```bash
 npm install
 ```
 
-또는 yarn을 사용하는 경우:
-```bash
-yarn install
-```
+이 과정은 몇 분 정도 소요될 수 있습니다.
 
-### 4️⃣ 개발 서버 실행
+### 3. 개발 서버 실행
+
+다음 명령어로 개발 서버를 시작합니다:
 
 ```bash
 npm run dev
 ```
 
-브라우저에서 `http://localhost:5173` 으로 접속하세요!
+성공적으로 실행되면 다음과 같은 메시지가 표시됩니다:
 
-## ✅ 설치 확인
-
-모든 것이 정상적으로 설정되었는지 확인:
-
-1. **개발 서버 실행 확인**
-   - 터미널에 "Local: http://localhost:5173" 메시지가 표시되어야 합니다
-   
-2. **브라우저에서 확인**
-   - 메인 페이지가 정상적으로 로드되어야 합니다
-   - HELIOS 로고와 오렌지색 브랜드 컬러가 보여야 합니다
-
-3. **라우팅 확인**
-   - `/login` - 로그인 페이지
-   - `/signup` - 회원가입 페이지
-   - `/upload` - 모델 업로드 페이지 (로그인 후)
-   - `/download` - 모델 다운로드 페이지 (로그인 후)
-   - `/admin` - 관리자 페이지 (admin@helios.com으로 로그인)
-
-## 🧪 테스트 계정
-
-### 일반 사용자로 테스트
 ```
-이메일: test@hospital.com (또는 아무거나)
-비밀번호: 아무거나
+VITE v6.0.7  ready in XXX ms
+
+➜  Local:   http://localhost:5173/
+➜  Network: use --host to expose
 ```
 
-로그인하면:
-- Header에 "서울중앙병원" 버튼이 표시됩니다
-- 모델 업로드, 다운로드 페이지에 접근할 수 있습니다
-- 회원 정보 페이지를 확인할 수 있습니다
+### 4. 브라우저에서 접속
 
-### 관리자로 테스트
-```
-이메일: admin@helios.com
-비밀번호: 아무거나
-```
+브라우저를 열고 `http://localhost:5173/`로 접속하면 HELIOS 플랫폼을 사용할 수 있습니다.
 
-로그인하면:
-- Header에 "HELIOS 관리자" 버튼이 표시됩니다
-- **관리자 페이지** 메뉴가 오렌지색으로 나타납니다
-- 회원가입 승인, 화이트리스트 관리 등을 할 수 있습니다
-
-## 🛠️ 추가 명령어
+## 🛠️ 기타 명령어
 
 ### 프로덕션 빌드
+
+배포용 파일을 생성하려면:
+
 ```bash
 npm run build
 ```
-빌드 결과물은 `dist/` 폴더에 생성됩니다.
 
-### 빌드 미리보기
+빌드된 파일은 `dist` 폴더에 생성됩니다.
+
+### 프로덕션 빌드 미리보기
+
+빌드된 파일을 로컬에서 미리 확인:
+
 ```bash
 npm run preview
 ```
-프로덕션 빌드를 로컬에서 테스트합니다.
 
-### 린팅 (코드 검사)
+### 코드 린팅
+
+코드 품질 검사:
+
 ```bash
 npm run lint
 ```
 
-## ⚠️ 자주 발생하는 문제 해결
+## 📁 프로젝트 구조
 
-### 1. "Cannot find module './App'" 에러
-**원인:** `App.tsx`가 `src/` 폴더 안에 없음
-
-**해결:**
-```bash
-# App.tsx를 src/ 폴더로 이동
-mv App.tsx src/
+```
+helios/
+├── src/
+│   └── main.tsx              # 애플리케이션 진입점
+├── App.tsx                   # 메인 App 컴포넌트 및 라우팅
+├── components/               # 재사용 가능한 컴포넌트
+│   ├── Header.tsx
+│   ├── Footer.tsx
+│   ├── Layout.tsx
+│   ├── SignUpPage.tsx       # 회원가입 컴포넌트
+│   └── ui/                   # UI 컴포넌트 라이브러리
+├── pages/                    # 페이지 컴포넌트
+│   ├── HomePage.tsx
+│   ├── SignUpPage.tsx
+│   ├── LoginPage.tsx
+│   ├── SessionListPage.tsx
+│   ├── SessionCreatePage.tsx
+│   ├── LabelingAutoPage.tsx
+│   ├── LabelingManualPage.tsx
+│   ├── SessionTrainingPage.tsx
+│   ├── SessionResultsPage.tsx
+│   ├── ModelDownloadPage.tsx
+│   ├── ModelDetailPage.tsx
+│   ├── MyPage.tsx
+│   └── AdminPage.tsx
+├── contexts/                 # React Context
+│   └── AuthContext.tsx
+├── styles/
+│   └── globals.css          # 전역 스타일 및 Tailwind CSS
+├── index.html               # HTML 진입점
+├── package.json             # 프로젝트 의존성 및 스크립트
+├── vite.config.ts           # Vite 설정
+├── tsconfig.json            # TypeScript 설정
+├── setup.bat                # Windows 자동 설치 스크립트
+├── setup.sh                 # Mac/Linux 자동 설치 스크립트
+├── QUICKSTART.md            # 빠른 시작 가이드
+└── README.md                # 프로젝트 설명
 ```
 
-### 2. "Failed to resolve import" 에러
-**원인:** 의존성이 설치되지 않음
+## 🎨 기술 스택
 
-**해결:**
+- **React 18** - UI 라이브러리
+- **TypeScript** - 타입 안정성
+- **Vite** - 빌드 도구 및 개발 서버
+- **React Router** - 라우팅
+- **Tailwind CSS** - 스타일링
+- **Radix UI** - 접근성 있는 UI 컴포넌트
+- **Recharts** - 차트 라이브러리
+- **Lucide React** - 아이콘
+
+## 🔑 테스트 계정
+
+### 일반 병원 계정
+- 이메일: `test@hospital.com`
+- 비밀번호: 아무거나 입력 (데모용)
+
+### 관리자 계정
+- 이메일: `admin@helios.com`
+- 비밀번호: 아무거나 입력 (데모용)
+
+## 📱 주요 기능
+
+1. **회원가입 및 로그인** - 병원 정보 등록 및 인증
+   - 심플하고 깔끔한 UI
+   - 병원명, 이메일, 비밀번호, 사업자번호 입력
+   
+2. **세션 생성** - 연합학습 세션 생성
+   - 데이터 형식 선택 (X-ray, CT, MRI 등)
+   - 질환 클래스 설정
+   - **CheXpert 프리셋**: 버튼 클릭 한 번으로 14개 클래스 자동 설정
+     * 특이사항 없음 (정상)
+     * 심장종격동 비대
+     * 심장비대증
+     * 폐 혼탁
+     * 폐 병변
+     * 폐부종
+     * 폐경화
+     * 폐렴
+     * 무기폐
+     * 기흉
+     * 흉수
+     * 기타 흉막 질환
+     * 골절
+     * 의료 보조 장치
+   
+3. **학습 참여** - 세션 참여 및 라벨링
+   - **자동 라벨링**: 폴더 업로드 후 AI가 자동으로 라벨 지정
+   - **수동 라벨링**: 버튼 클릭으로 빠른 라벨링
+   - 폴더 업로드 지원 (파일 하나하나 선택 필요 없음)
+   
+4. **학습 진행** - 실시간 학습 진행 상황 모니터링
+   - 실시간 정확도 및 손실 그래프
+   - 참여 병원 현황
+   
+5. **모델 다운로드** - 학습된 모델 다운로드
+   - 상세한 모델 정보 제공
+   - CSV 라벨링 결과 다운로드
+   
+6. **관리자 페이지** - 회원 승인, 병원 관리, 모델 관리
+
+## ⚠️ 주의사항
+
+- 이 프로젝트는 **프론트엔드 데모**입니다. 실제 백엔드 서버 없이 작동합니다.
+- 모든 데이터는 브라우저 메모리에만 저장되며, 페이지를 새로고침하면 초기화됩니다.
+- 실제 파일 업로드는 로컬에서만 처리되며 서버로 전송되지 않습니다.
+- CSV 다운로드는 시뮬레이션된 데이터를 사용합니다.
+- 폴더 업로드 기능은 최신 브라우저에서만 작동합니다 (Chrome, Edge 권장).
+
+## 🐛 문제 해결
+
+### 포트가 이미 사용 중인 경우
+
+다른 포트를 사용하려면:
+
 ```bash
-# node_modules 삭제 후 재설치
+npm run dev -- --port 3000
+```
+
+### 의존성 설치 오류
+
+캐시를 삭제하고 다시 설치:
+
+**Windows:**
+```cmd
+rmdir /s /q node_modules
+del package-lock.json
+npm install
+```
+
+**Mac/Linux:**
+```bash
 rm -rf node_modules package-lock.json
 npm install
 ```
 
-### 3. "Module not found: Can't resolve './styles/globals.css'"
-**원인:** styles 폴더가 src/ 안에 없음
+### 브라우저 호환성
 
-**해결:**
-```bash
-mv styles src/
-```
+모던 브라우저(Chrome, Firefox, Safari, Edge 최신 버전)를 사용하세요.
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
 
-### 4. 포트 5173이 이미 사용중
-**해결:**
-```bash
-# 다른 포트로 실행
-npm run dev -- --port 3000
-```
+### 폴더 업로드가 작동하지 않는 경우
 
-### 5. TypeScript 에러
-**원인:** 타입 정의가 누락됨
+- Chrome, Edge 브라우저 사용을 권장합니다.
+- Firefox와 Safari는 폴더 업로드 지원이 제한적일 수 있습니다.
 
-**해결:**
-```bash
-# React 타입 설치
-npm install -D @types/react @types/react-dom
-```
+## 🆕 최신 업데이트
 
-### 6. Tailwind 스타일이 적용되지 않음
-**확인사항:**
-1. `src/styles/globals.css` 파일이 존재하는지
-2. `src/main.tsx`에서 `import './styles/globals.css'`가 있는지
-3. Tailwind v4 설정이 `globals.css`에 있는지
+### 회원가입/로그인 UI 개선
+- 더 심플하고 깔끔한 디자인
+- 필수 정보만 입력하는 간소화된 폼
+- 직관적인 인증 프로세스
 
-## 📦 최종 폴더 구조
+### 세션 생성 - CheXpert 프리셋
+- CheXpert 14개 클래스를 버튼 클릭 한 번으로 자동 설정
+- 데이터 형식 자동 설정 (X-ray)
+- 한글 클래스명 사용으로 가독성 향상
 
-올바르게 설정되면 다음과 같은 구조가 됩니다:
+### 라벨링 개선
+- **버튼 방식 라벨링**: Select 드롭다운 대신 버튼 클릭으로 빠른 라벨링
+- **폴더 업로드**: 파일 하나하나 선택 대신 폴더 전체 업로드 가능
+- 더 직관적이고 빠른 워크플로우
 
-```
-프로젝트-루트/
-├── node_modules/           # npm install 후 생성됨
-├── dist/                   # npm run build 후 생성됨
-├── src/
-│   ├── main.tsx           # ✅ 엔트리 포인트
-│   ├── App.tsx            # ✅ 메인 라우터
-│   ├── components/
-│   │   ├── Layout.tsx
-│   │   ├── Header.tsx
-│   │   ├── Footer.tsx
-│   │   ├── HeroSection.tsx
-│   │   ├── FeaturesSection.tsx
-│   │   ├── GuideSection.tsx
-│   │   ├── figma/
-│   │   │   └── ImageWithFallback.tsx
-│   │   └── ui/            # shadcn/ui 컴포넌트들
-│   │       ├── button.tsx
-│   │       ├── input.tsx
-│   │       ├── card.tsx
-│   │       └── ...
-│   ├── contexts/
-│   │   └── AuthContext.tsx
-│   ├── pages/
-│   │   ├── HomePage.tsx
-│   │   ├── SignUpPage.tsx
-│   │   ├── LoginPage.tsx
-│   │   ├── MyPage.tsx
-│   │   ├── ModelUploadPage.tsx
-│   │   ├── ModelDownloadPage.tsx
-│   │   ├── AdminPage.tsx
-│   │   └── NotFoundPage.tsx
-│   ├── styles/
-│   │   └── globals.css
-│   └── guidelines/
-│       └── Guidelines.md
-├── index.html             # ✅ HTML 템플릿
-├── package.json           # ✅ 의존성 관리
-├── vite.config.ts         # ✅ Vite 설정
-├── tsconfig.json          # ✅ TypeScript 설정
-├── eslint.config.js       # ✅ ESLint 설정
-├── .gitignore             # ✅ Git 무시 파일
-├── README.md
-├── SETUP.md
-└── LOCAL_SETUP.md         # ✅ 이 파일
-```
+## 📞 지원
 
-## 🎯 다음 단계
+문제가 발생하거나 질문이 있으면 이슈를 등록해주세요.
 
-프로젝트가 정상적으로 실행되면:
+## 📄 라이선스
 
-1. **기능 테스트**
-   - 회원가입/로그인 플로우
-   - 모델 업로드/다운로드
-   - 관리자 페이지
-
-2. **코드 수정**
-   - 원하는 기능 추가
-   - UI 커스터마이징
-   - API 연동 (Supabase 등)
-
-3. **배포 준비**
-   - 환경 변수 설정
-   - 프로덕션 빌드 테스트
-   - 호스팅 서비스 선택 (Vercel, Netlify 등)
-
-## 💡 유용한 팁
-
-### VS Code 확장 프로그램 추천
-- ESLint
-- Tailwind CSS IntelliSense
-- TypeScript Vue Plugin (Volar)
-- Auto Rename Tag
-- Prettier
-
-### 개발 시 Hot Reload
-Vite는 파일을 저장하면 자동으로 브라우저를 새로고침합니다. 변경사항을 즉시 확인할 수 있습니다!
-
-### TypeScript 타입 체크
-```bash
-# 빌드하지 않고 타입만 체크
-npx tsc --noEmit
-```
-
-## 📞 도움이 필요하신가요?
-
-문제가 해결되지 않으면:
-1. `package.json`이 있는지 확인
-2. `node_modules` 폴더가 생성되었는지 확인
-3. Node.js 버전 확인: `node --version` (18.x 이상 필요)
-4. 에러 메시지를 자세히 읽어보세요
-
-그래도 안 되면 GitHub Issues에 에러 로그와 함께 등록해주세요!
+이 프로젝트는 데모 목적으로 제작되었습니다.
 
 ---
 
-**즐거운 개발 되세요! 🚀**
+**HELIOS** - 병원 대상 연합학습 서비스

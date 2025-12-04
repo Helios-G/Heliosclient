@@ -1,7 +1,7 @@
 import { Button } from "./ui/button";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Building2, ChevronDown } from "lucide-react";
+import { Building2, ChevronDown, Sun } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,31 +46,38 @@ export function Header() {
         {/* Logo */}
         <Link 
           to="/"
-          className="flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+          className="flex items-center gap-2 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
         >
-          <h1 style={{ color: '#FF9500' }}>HELIOS</h1>
+          <Sun className="w-8 h-8" style={{ color: '#FF9500' }} />
+          <h1 className="text-gray-800">HELIOS</h1>
         </Link>
 
         {/* Navigation */}
         <nav className="hidden md:flex items-center gap-8">
           <Link 
             to="/"
-            className="hover:opacity-70 transition-opacity"
+            className="text-gray-700 hover:opacity-70 transition-opacity"
           >
-            Home
+            홈
           </Link>
           <button 
             onClick={() => handleSectionClick('about')}
-            className="hover:opacity-70 transition-opacity"
+            className="text-gray-700 hover:opacity-70 transition-opacity"
           >
-            서비스 설명
+            서비스 소개
           </button>
-          <button 
-            onClick={() => handleSectionClick('guide')}
-            className="hover:opacity-70 transition-opacity"
+          <Link 
+            to="/upload"
+            className="text-gray-700 hover:opacity-70 transition-opacity"
           >
-            서비스 사용법
-          </button>
+            학습 참여
+          </Link>
+          <Link 
+            to="/download"
+            className="text-gray-700 hover:opacity-70 transition-opacity"
+          >
+            모델 다운로드
+          </Link>
         </nav>
 
         {/* Auth Buttons or Hospital Menu */}
@@ -81,7 +88,7 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="outline"
-                  className="gap-2 border-2 hover:border-[#FF9500]"
+                  className="gap-2 border-2 hover:border-[#FF9500] bg-white"
                 >
                   <Building2 className="w-4 h-4" style={{ color: '#FF9500' }} />
                   <span>{hospital.name}</span>
@@ -139,18 +146,19 @@ export function Header() {
             // 로그인 안된 상태 - 로그인/회원가입 버튼
             <>
               <Button 
-                variant="ghost"
-                className="hover:opacity-70"
                 onClick={() => navigate('/login')}
+                style={{ backgroundColor: '#FF9500' }}
+                className="text-white hover:opacity-90"
               >
                 로그인
               </Button>
               <Button 
+                variant="outline"
                 onClick={() => navigate('/signup')}
-                style={{ backgroundColor: '#FF9500' }}
-                className="text-white hover:opacity-90"
+                style={{ borderColor: '#FF9500', color: '#FF9500' }}
+                className="border-2 hover:bg-orange-50"
               >
-                회원가입
+                가입신청
               </Button>
             </>
           )}
