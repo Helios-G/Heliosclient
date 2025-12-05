@@ -5,21 +5,32 @@ import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
-import { Folder, Loader2, Download, Check, X } from "lucide-react";
+import { Folder, Loader2, Download, Check } from "lucide-react";
+
+// ✅ TF.js 및 데이터 컨텍스트 추가
+import * as tf from "@tensorflow/tfjs";
+import { useTrainingData } from "../contexts/TrainingDataContext";
 
 interface LabeledData {
   filename: string;
   imageUrl: string;
   label: string;
   confidence: number;
+  tensor?: tf.Tensor; // 학습용 텐서 저장
 }
 
 type ViewMode = "1x1" | "2x2" | "3x3";
+
+// CheXpert 클래스 정의 (0: Normal, 1: Pneumonia 등)
+// 실제 모델 출력 순서와 맞춰야 함 (여기서는 데모용으로 2개만 사용)
+const CLASSES = ["No Finding", "Pneumonia"];
 
 export function LabelingAutoPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { hospital } = useAuth();
+  const { setTrainingData } = useTrainingData(); // 전역 데이터 저장소
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState<"select" | "labeling" | "review">("select");
@@ -28,9 +39,7 @@ export function LabelingAutoPage() {
   const [labeledData, setLabeledData] = useState<LabeledData[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>("1x1");
   const [currentPage, setCurrentPage] = useState(0);
-
-  // 세션 정보 (실제로는 API에서 가져옴)
-  const sessionClasses = ["No Finding", "Pneumonia", "Atelectasis", "Cardiomegaly"];
+  const [model, setModel] = useState<tf.LayersModel | null>(null);
 
   // 로그인 체크
   useEffect(() => {
@@ -39,58 +48,96 @@ export function LabelingAutoPage() {
     }
   }, [hospital, navigate]);
 
-  if (!hospital) {
-    return null;
-  }
+  // ✅ 1. 오토라벨링 모델 로드 (페이지 진입 시)
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        console.log("⏳ 모델 로딩 중...");
+        // public/web_model/model.json 경로 (없으면 MobileNet 사용)
+        const loadedModel = await tf.loadLayersModel(
+          "/web_model/model.json" 
+        ).catch(() => {
+            console.warn("로컬 모델 없음, MobileNet 사용");
+            return tf.loadLayersModel("https://storage.googleapis.com/tfjs-models/tfjs/mobilenet_v1_0.25_224/model.json");
+        });
+        
+        setModel(loadedModel);
+        console.log("✅ 모델 로드 완료!");
+      } catch (err) {
+        console.error("❌ 모델 로드 실패:", err);
+      }
+    };
+    loadModel();
+  }, []);
+
+  if (!hospital) return null;
 
   // 파일 선택 처리
   const handleFolderSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    if (!model) {
+        alert("AI 모델이 아직 로딩되지 않았습니다. 잠시만 기다려주세요.");
+        return;
+    }
+
     setSelectedFolder(`${files.length}개 파일 선택됨`);
-    
-    // 자동 라벨링 시작
     setStep("labeling");
     
-    // 모의 자동 라벨링 프로세스
-    const mockLabeling = async () => {
+    // ✅ 2. 진짜 오토라벨링 실행
+    const runAutoLabeling = async () => {
       const results: LabeledData[] = [];
-      
-      // 실제 선택된 이미지 파일들을 처리
       const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
       
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
-        const reader = new FileReader();
         
-        await new Promise((resolve) => {
-          reader.onload = (event) => {
-            const label = sessionClasses[Math.floor(Math.random() * sessionClasses.length)];
-            const confidence = 0.75 + Math.random() * 0.24; // 75-99%
-            
-            results.push({
-              filename: file.name,
-              imageUrl: event.target?.result as string,
-              label,
-              confidence
-            });
-            
-            setLabelingProgress(((i + 1) / imageFiles.length) * 100);
-            resolve(null);
-          };
-          reader.readAsDataURL(file);
+        // 이미지 로드 및 텐서 변환
+        const imgElement = new Image();
+        const imageUrl = URL.createObjectURL(file);
+        imgElement.src = imageUrl;
+        
+        await new Promise((resolve) => { imgElement.onload = resolve; });
+
+        // 전처리
+        const tensor = tf.browser.fromPixels(imgElement)
+            .resizeNearestNeighbor([224, 224])
+            .toFloat()
+            .div(255.0)
+            .expandDims();
+
+        // 추론 (Inference)
+        const predictions = await model.predict(tensor) as tf.Tensor;
+        const data = await predictions.data();
+        
+        // 결과 해석 (MobileNet은 1000개지만, 여기선 0번 인덱스 값으로 판단)
+        // 실제 CheXNet이라면 data[7]이 Pneumonia 확률
+        const score = data[0]; 
+        const label = score > 0.5 ? "Pneumonia" : "No Finding";
+        
+        results.push({
+          filename: file.name,
+          imageUrl,
+          label,
+          confidence: score > 0.5 ? score : 1 - score,
+          tensor: tensor // 나중에 학습에 쓰기 위해 저장
         });
         
-        // 시뮬레이션을 위한 딜레이
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // 메모리 정리 (텐서는 나중에 쓸 거라 dispose 안 함, 예측 결과만 정리)
+        predictions.dispose();
+        
+        setLabelingProgress(((i + 1) / imageFiles.length) * 100);
+        
+        // UI 업데이트를 위한 짧은 대기
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
       
       setLabeledData(results);
       setStep("review");
     };
 
-    mockLabeling();
+    runAutoLabeling();
   };
 
   // CSV 다운로드
@@ -111,12 +158,28 @@ export function LabelingAutoPage() {
     URL.revokeObjectURL(url);
   };
 
-  // 학습 시작
+  // ✅ 3. 학습 시작 (데이터 전송)
   const handleStartTraining = () => {
+    if (labeledData.length === 0) return;
+
+    console.log("🔄 학습 데이터 준비 중...");
+
+    // 텐서들을 하나로 묶기 (Stack)
+    const xTensors = labeledData.map(d => d.tensor!);
+    const xTrain = tf.concat(xTensors, 0); // [N, 224, 224, 3]
+
+    // 라벨 변환 (Pneumonia=1, No Finding=0)
+    const yValues = labeledData.map(d => d.label === "Pneumonia" ? 1 : 0);
+    const yTrain = tf.tensor2d(yValues, [yValues.length, 1]);
+
+    // 전역 Context에 저장
+    setTrainingData(xTrain, yTrain);
+    console.log(`✅ 데이터 전송 완료! (${labeledData.length}개)`);
+
     navigate(`/session/${sessionId}/training`);
   };
 
-  // 뷰 모드에 따른 이미지 개수
+  // 뷰 모드 관련 로직
   const imagesPerPage = viewMode === "1x1" ? 1 : viewMode === "2x2" ? 4 : 9;
   const totalPages = Math.ceil(labeledData.length / imagesPerPage);
   const currentImages = labeledData.slice(
@@ -124,7 +187,9 @@ export function LabelingAutoPage() {
     (currentPage + 1) * imagesPerPage
   );
 
-  // 파일 선택 단계
+  // --- 렌더링 (UI) ---
+  
+  // 1. 파일 선택 단계
   if (step === "select") {
     return (
       <div className="min-h-screen py-12 px-4 bg-white">
@@ -145,7 +210,7 @@ export function LabelingAutoPage() {
               accept="image/*"
               onChange={handleFolderSelect}
               className="hidden"
-              // @ts-ignore - webkitdirectory는 TypeScript에서 인식하지 못하지만 브라우저에서 작동함
+              // @ts-ignore
               webkitdirectory=""
               directory=""
             />
@@ -154,9 +219,19 @@ export function LabelingAutoPage() {
               onClick={() => fileInputRef.current?.click()}
               style={{ backgroundColor: '#FF9500' }}
               className="text-white hover:opacity-90"
+              disabled={!model} // 모델 로딩 전에는 비활성화
             >
-              <Folder className="w-4 h-4 mr-2" />
-              폴더 선택
+              {model ? (
+                <>
+                  <Folder className="w-4 h-4 mr-2" />
+                  폴더 선택
+                </>
+              ) : (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  모델 로딩 중...
+                </>
+              )}
             </Button>
 
             {selectedFolder && (
@@ -168,9 +243,8 @@ export function LabelingAutoPage() {
             <h4 className="mb-2 text-blue-900">자동 라벨링 안내</h4>
             <div className="space-y-2 text-sm text-blue-800">
               <p>• 폴더를 선택하면 그 안의 모든 이미지 파일이 로드됩니다</p>
-              <p>• AI가 자동으로 이미지를 분석하여 라벨을 지정합니다</p>
-              <p>• 라벨링 완료 후 검수 단계에서 결과를 확인할 수 있습니다</p>
-              <p>• 잘못된 라벨은 검수 단계에서 수정 가능합니다</p>
+              <p>• <strong>브라우저 내장 AI (TF.js)</strong>가 이미지를 분석하여 라벨을 지정합니다</p>
+              <p>• 데이터는 서버로 전송되지 않고 <strong>로컬에서 처리</strong>됩니다 (Privacy Safe)</p>
             </div>
           </Card>
         </div>
@@ -178,7 +252,7 @@ export function LabelingAutoPage() {
     );
   }
 
-  // 라벨링 진행 단계
+  // 2. 라벨링 진행 단계
   if (step === "labeling") {
     return (
       <div className="min-h-screen py-12 px-4 bg-white">
@@ -188,7 +262,7 @@ export function LabelingAutoPage() {
           <Card className="p-12 text-center">
             <Loader2 className="w-16 h-16 mx-auto mb-4 text-orange-500 animate-spin" />
             <h3 className="mb-2">AI가 데이터를 분석하고 있습니다</h3>
-            <p className="text-gray-600 mb-6">잠시만 기다려주세요...</p>
+            <p className="text-gray-600 mb-6">잠시만 기다려주세요... (로컬 연산 중)</p>
 
             <Progress value={labelingProgress} className="mb-4" />
             <p className="text-sm text-gray-700">
@@ -200,7 +274,7 @@ export function LabelingAutoPage() {
     );
   }
 
-  // 검수 단계
+  // 3. 검수 단계 (기존 UI 유지)
   return (
     <div className="min-h-screen py-12 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
@@ -212,14 +286,10 @@ export function LabelingAutoPage() {
             </p>
           </div>
 
-          {/* 뷰 모드 선택 */}
           <div className="flex gap-2">
             <Button
               variant={viewMode === "1x1" ? "default" : "outline"}
-              onClick={() => {
-                setViewMode("1x1");
-                setCurrentPage(0);
-              }}
+              onClick={() => { setViewMode("1x1"); setCurrentPage(0); }}
               style={viewMode === "1x1" ? { backgroundColor: '#FF9500' } : {}}
               className={viewMode === "1x1" ? "text-white" : ""}
             >
@@ -227,10 +297,7 @@ export function LabelingAutoPage() {
             </Button>
             <Button
               variant={viewMode === "2x2" ? "default" : "outline"}
-              onClick={() => {
-                setViewMode("2x2");
-                setCurrentPage(0);
-              }}
+              onClick={() => { setViewMode("2x2"); setCurrentPage(0); }}
               style={viewMode === "2x2" ? { backgroundColor: '#FF9500' } : {}}
               className={viewMode === "2x2" ? "text-white" : ""}
             >
@@ -238,10 +305,7 @@ export function LabelingAutoPage() {
             </Button>
             <Button
               variant={viewMode === "3x3" ? "default" : "outline"}
-              onClick={() => {
-                setViewMode("3x3");
-                setCurrentPage(0);
-              }}
+              onClick={() => { setViewMode("3x3"); setCurrentPage(0); }}
               style={viewMode === "3x3" ? { backgroundColor: '#FF9500' } : {}}
               className={viewMode === "3x3" ? "text-white" : ""}
             >
@@ -250,7 +314,6 @@ export function LabelingAutoPage() {
           </div>
         </div>
 
-        {/* 이미지 그리드 */}
         <div className={`grid gap-4 mb-6 ${
           viewMode === "1x1" ? "grid-cols-1" :
           viewMode === "2x2" ? "grid-cols-2" :
@@ -269,7 +332,7 @@ export function LabelingAutoPage() {
                 <p className="text-sm text-gray-600 truncate">{data.filename}</p>
                 <div className="flex items-center justify-between">
                   <Badge
-                    style={{ backgroundColor: '#FF9500' }}
+                    style={{ backgroundColor: data.label === "Pneumonia" ? '#dc3545' : '#28a745' }}
                     className="text-white"
                   >
                     {data.label}
@@ -283,7 +346,6 @@ export function LabelingAutoPage() {
           ))}
         </div>
 
-        {/* 페이지네이션 */}
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-4 mb-6">
             <Button
@@ -306,7 +368,6 @@ export function LabelingAutoPage() {
           </div>
         )}
 
-        {/* 하단 액션 버튼 */}
         <div className="flex gap-4 justify-center">
           <Button
             variant="outline"

@@ -225,7 +225,7 @@ export function ModelDetailPage() {
 
         {/* 모델 구조 및 상세 정보 */}
         <Card className="p-8 mb-8 border-2">
-          <h2 style={{ color: '#6B3131' }} className="mb-6">모델 상세 정보</h2>
+          <h2 style={{ color: '#6B3131' }} className="mb-6">학습 상세 정보</h2>
           
           <div className="space-y-6">
             {/* 모델 아키텍처 */}
@@ -235,18 +235,6 @@ export function ModelDetailPage() {
                 <div className="p-4 rounded-lg" style={{ backgroundColor: '#FFF9F5' }}>
                   <p className="text-sm text-gray-600 mb-1">네트워크</p>
                   <p>{modelDetail.modelArchitecture}</p>
-                </div>
-                <div className="p-4 rounded-lg" style={{ backgroundColor: '#FFF9F5' }}>
-                  <p className="text-sm text-gray-600 mb-1">파라미터 수</p>
-                  <p>{modelDetail.totalParameters}</p>
-                </div>
-                <div className="p-4 rounded-lg" style={{ backgroundColor: '#FFF9F5' }}>
-                  <p className="text-sm text-gray-600 mb-1">모델 크기</p>
-                  <p>{modelDetail.modelSize}</p>
-                </div>
-                <div className="p-4 rounded-lg" style={{ backgroundColor: '#FFF9F5' }}>
-                  <p className="text-sm text-gray-600 mb-1">프레임워크</p>
-                  <p>{modelDetail.framework}</p>
                 </div>
               </div>
             </div>
