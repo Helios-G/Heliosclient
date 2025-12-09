@@ -12,12 +12,12 @@ export function FeaturesSection() {
     {
       icon: Tag,
       title: "라벨링 지원",
-      description: "자동, 수동 모두 지원"
+      description: "자동 라벨링, 수동라벨링 방식 지원"
     },
     {
       icon: Brain,
       title: "학습 모델 지원",
-      description: "다양한 ai 모델 버전고 연합 학습 세션 참여를 지원"
+      description: "다양한 ai 모델 버전을 지원"
     }
   ];
 

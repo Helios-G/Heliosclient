@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import logo from "../assets/logo.png";
 
 export function Header() {
   const navigate = useNavigate();
@@ -48,9 +49,15 @@ export function Header() {
           to="/"
           className="flex items-center gap-2 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
         >
-          <Sun className="w-8 h-8" style={{ color: '#FF9500' }} />
-          <h1 className="text-gray-800">HELIOS</h1>
+          <img
+            src={logo}
+            alt="HELIOS Logo"
+            style={{ width: "140px", height: "auto" }}
+            className="object-contain"
+          />
+
         </Link>
+
 
         {/* Navigation */}
         <nav className="hidden md:flex items-center gap-8">

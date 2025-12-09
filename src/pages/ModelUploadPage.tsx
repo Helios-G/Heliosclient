@@ -156,7 +156,7 @@ export function ModelUploadPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ backgroundColor: '#FFF5EB' }}>
+    <div className="min-h-screen py-12 px-4" style={{ backgroundColor: '#FFFFFF' }}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">

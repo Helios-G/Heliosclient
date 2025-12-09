@@ -9,7 +9,7 @@ export function Footer() {
             <div className="space-y-1 text-gray-300">
               <p>회사명 : HELIOS</p>
               <p>전화 : 02-1234-5678</p>
-              <p>주소 : 경기도 안양시 추정구 거천대학로 N 공학관</p>
+              <p>주소 : 경기도 성남시 수정구 가천대학교 AI 공학관 </p>
             </div>
           </div>
 

@@ -64,9 +64,6 @@ export function HeroSection() {
 
       {/* Content */}
       <div className="container mx-auto px-4 relative z-10 text-center text-white">
-        <h1 className="mb-6 tracking-wider text-white">
-          HELIOS
-        </h1>
         <p className="mb-8 max-w-2xl mx-auto opacity-90">
           HELIOS는 다양한 병원들이 참여하여 학습한<br />
           의료진단 AI를 제공합니다.

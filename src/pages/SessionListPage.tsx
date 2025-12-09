@@ -53,7 +53,7 @@ export function SessionListPage() {
     {
       id: "2",
       status: "진행 중",
-      title: "유방암 조기진단 AI 모",
+      title: "유방암 조기진단 AI 모델",
       participants: 5,
       maxParticipants: 5,
       progress: "진행중"
@@ -83,7 +83,7 @@ export function SessionListPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ backgroundColor: '#FFF5EB' }}>
+    <div className="min-h-screen py-12 px-4" style={{ backgroundColor: '#FFFFFF' }}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8 flex items-center justify-between">
@@ -105,13 +105,13 @@ export function SessionListPage() {
           <h3 className="mb-4" style={{ color: '#6B3131' }}>연합학습 참여 가이드</h3>
           <div className="space-y-2 text-gray-700">
             <p>
-              <span style={{ color: '#6B3131' }}>최하는 세션의 참여하기 버튼 클릭 후,</span> 안내에 따라 라벨링을 진행 한 후 참여 대기 신청을 완료하면
+              <span style={{ color: '#6B3131' }}>원하는 세션의 참여하기 버튼을 클릭 후,</span> 안내에 따라 라벨링을 진행합니다.
             </p>
             <p>
-              조건 기관 수 채워질 때 자동 실행 됨
+              조건 기관 수가 채워지면 학습이 자동 시작됩니다.
             </p>
             <p>
-              <span style={{ color: '#6B3131' }}>완료된 목록은</span> 모델 다운로드 페이지서 확인 참여 이메일서 확인 가능
+              <span style={{ color: '#6B3131' }}>완료된 목록은</span> 모델 다운로드 페이지에서 다운받아 사용이 가능합니다.
             </p>
           </div>
         </Card>

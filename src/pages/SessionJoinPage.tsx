@@ -57,7 +57,7 @@ export function SessionJoinPage() {
         </div>
 
         {/* 세션 정보 */}
-        <Card className="p-6 mb-8 border-2" style={{ backgroundColor: '#FFF9F5' }}>
+        <Card className="p-6 mb-8 border-2" style={{ backgroundColor: '#FFFFFF' }}>
           <h2 style={{ color: '#6B3131' }} className="mb-4">{sessionInfo.title}</h2>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
