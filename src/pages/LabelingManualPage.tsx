@@ -13,9 +13,10 @@ import {
   Check,
   Wand2,
   Loader2,
-  LayoutGrid, // 아이콘 추가
+  LayoutGrid,
   Grid2X2,
-  Grid3X3
+  Grid3X3,
+  Edit2
 } from "lucide-react";
 
 import * as tf from "@tensorflow/tfjs";
@@ -25,9 +26,17 @@ interface ImageFile {
   filename: string;
   imageUrl: string;
   label?: string;
+  confidence?: number;
 }
 
 type ViewMode = "1x1" | "2x2" | "3x3";
+
+// CheXpert 클래스 정의
+const CHEXPERT_LABELS = [
+  "No Finding", "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity",
+  "Lung Lesion", "Edema", "Consolidation", "Pneumonia", "Atelectasis",
+  "Pneumothorax", "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
+];
 
 export function LabelingManualPage() {
   const { sessionId } = useParams();
@@ -37,33 +46,41 @@ export function LabelingManualPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // ✅ Step에 'review' 추가
   const [step, setStep] = useState<"select" | "labeling" | "review">("select");
   const [images, setImages] = useState<ImageFile[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [progressValue, setProgressValue] = useState(0);
 
-  // ✅ 검수 페이지용 State 추가
   const [viewMode, setViewMode] = useState<ViewMode>("1x1");
   const [currentPage, setCurrentPage] = useState(0);
 
-  const sessionClasses = [
-    "No Finding",
-    "Atelectasis",
-    "Cardiomegaly",
-    "Consolidation",
-    "Edema",
-    "Pleural Effusion",
-    "Pneumonia"
-  ];
+  const [model, setModel] = useState<tf.GraphModel | null>(null);
 
   useEffect(() => {
     if (!hospital) navigate("/login");
   }, [hospital, navigate]);
 
+  useEffect(() => {
+    const loadModel = async () => {
+      try {
+        console.log("⏳ 모델 로딩 중...");
+        // WebGL 백엔드 최적화
+        await tf.setBackend('webgl');
+        await tf.ready();
+        
+        const loadedModel = await tf.loadGraphModel("/models/chexpert_tfjs/model.json");
+        setModel(loadedModel);
+        console.log("✅ 모델 로드 완료!");
+      } catch (err) {
+        console.error("❌ 모델 로드 실패:", err);
+      }
+    };
+    loadModel();
+  }, []);
+
   if (!hospital) return null;
 
-  // 파일 선택
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -96,7 +113,6 @@ export function LabelingManualPage() {
     setStep("labeling");
   };
 
-  // 라벨 저장
   const handleSaveLabel = (label: string) => {
     const updatedImages = [...images];
     updatedImages[currentIndex] = { ...updatedImages[currentIndex], label: label };
@@ -107,24 +123,81 @@ export function LabelingManualPage() {
     }
   };
 
-  // AI 자동 라벨링 (남은 것)
+  // ✅ 남은 데이터 자동 라벨링 (최적화 적용)
   const handleAutoLabelRemaining = async () => {
+    if (!model) {
+      alert("모델이 아직 로드되지 않았습니다.");
+      return;
+    }
+
     const confirm = window.confirm(`남은 ${unlabeledCount}개 이미지를 AI로 자동 라벨링 하시겠습니까?`);
     if (!confirm) return;
 
-    const updatedImages = images.map(img => {
-      if (!img.label) {
-        return {
-          ...img,
-          label: sessionClasses[Math.floor(Math.random() * sessionClasses.length)]
-        };
-      }
-      return img;
-    });
+    setIsProcessing(true);
+    setProgressValue(0);
+
+    const updatedImages = [...images];
+    const unlabeledIndices = updatedImages.map((img, idx) => !img.label ? idx : -1).filter(idx => idx !== -1);
+
+    for (let i = 0; i < unlabeledIndices.length; i++) {
+      const idx = unlabeledIndices[i];
+      const img = updatedImages[idx];
+
+      const imgElement = new Image();
+      imgElement.src = img.imageUrl;
+      await new Promise((resolve) => { imgElement.onload = resolve; });
+
+      // Canvas 최적화 (320x320 - 오토라벨링용)
+      const canvas = document.createElement('canvas');
+      canvas.width = 320;
+      canvas.height = 320;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.drawImage(imgElement, 0, 0, 320, 320);
+
+      const { label, confidence } = tf.tidy(() => {
+        let tensor = tf.browser.fromPixels(canvas); // 작은 이미지 로드
+        tensor = tensor.div(255.0);
+        
+        const mean = tf.tensor([0.485, 0.456, 0.406]);
+        const std = tf.tensor([0.229, 0.224, 0.225]);
+        tensor = tensor.sub(mean).div(std);
+        
+        tensor = tensor.transpose([2, 0, 1]);
+        const batch = tensor.expandDims(0);
+
+        const output = model.predict(batch) as tf.Tensor;
+        const probs = output.sigmoid().dataSync();
+        
+        let maxScore = -1;
+        let maxIndex = 0;
+        for(let j=0; j<probs.length; j++) {
+            if(probs[j] > maxScore) {
+                maxScore = probs[j];
+                maxIndex = j;
+            }
+        }
+
+        return { label: CHEXPERT_LABELS[maxIndex], confidence: maxScore };
+      });
+
+      updatedImages[idx] = { ...img, label, confidence };
+      setProgressValue(((i + 1) / unlabeledIndices.length) * 100);
+      await new Promise(resolve => setTimeout(resolve, 20)); // GPU 휴식
+    }
+
+    setImages(updatedImages);
+    setIsProcessing(false);
+    alert("AI 자동 라벨링 완료! 검수 단계로 이동합니다.");
+    handleGoToReview();
+  };
+
+  const handleUpdateLabelInReview = (index: number, newLabel: string) => {
+    const globalIndex = currentPage * imagesPerPage + index;
+    const updatedImages = [...images];
+    updatedImages[globalIndex] = { ...updatedImages[globalIndex], label: newLabel };
     setImages(updatedImages);
   };
 
-  // CSV 다운로드
   const handleDownloadCSV = () => {
     const csvContent = [
       ["filename", "label"],
@@ -140,49 +213,74 @@ export function LabelingManualPage() {
     URL.revokeObjectURL(url);
   };
 
-  // ✅ 검수 화면으로 이동
   const handleGoToReview = () => {
     if (unlabeledCount > 0) {
       alert(`아직 ${unlabeledCount}개의 이미지가 라벨링되지 않았습니다.`);
       return;
     }
     setStep("review");
-    setCurrentPage(0); // 페이지 초기화
+    setCurrentPage(0);
   };
 
-  // ✅ 학습 시작 (데이터 변환 및 전송)
+  // ✅ [핵심 수정] 학습 시작 (메모리 최적화)
   const handleStartTraining = async () => {
     setIsProcessing(true);
     try {
       console.log("🔄 데이터 변환 중...");
+      
       const xTensors = [];
       const yLabels = [];
 
       for (const img of images) {
         if (!img.label) continue;
+        
         const imageElement = new Image();
         imageElement.src = img.imageUrl;
         await new Promise((resolve) => { imageElement.onload = resolve; });
 
-        const tensor = tf.browser.fromPixels(imageElement)
-          .resizeNearestNeighbor([224, 224])
-          .toFloat()
-          .div(255.0);
+        // 1. Canvas로 먼저 리사이징 (CPU 작업 - 학습용 224x224)
+        const canvas = document.createElement('canvas');
+        canvas.width = 224; 
+        canvas.height = 224;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+            ctx.drawImage(imageElement, 0, 0, 224, 224);
+        }
+
+        // 2. 작아진 이미지를 텐서로 변환 (GPU 메모리 절약)
+        const tensor = tf.tidy(() => {
+            return tf.browser.fromPixels(canvas)
+              .toFloat()
+              .div(255.0); // 정규화만 수행
+        });
         
         xTensors.push(tensor);
-        const labelValue = img.label === "No Finding" ? 0 : 1;
-        yLabels.push(labelValue);
+        
+        // 라벨 변환 (One-hot Encoding [14])
+        const row = new Array(14).fill(0);
+        const labelIndex = CHEXPERT_LABELS.indexOf(img.label);
+        if (labelIndex !== -1) {
+            row[labelIndex] = 1;
+        }
+        yLabels.push(row);
+        
+        // UI 멈춤 방지
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
 
       if (xTensors.length > 0) {
+        // 텐서 병합
         const xTrain = tf.stack(xTensors);
-        const yTrain = tf.tensor2d(yLabels, [yLabels.length, 1]);
+        const yTrain = tf.tensor2d(yLabels, [yLabels.length, 14]);
+        
+        console.log(`✅ 변환 완료! 메모리 사용량: ${tf.memory().numBytes / 1024 / 1024} MB`);
+        
         setTrainingData(xTrain, yTrain);
         navigate(`/session/${sessionId}/training`);
       }
     } catch (error) {
       console.error(error);
-      alert("오류 발생");
+      alert("메모리 부족 오류가 발생했습니다. 이미지 개수를 줄여주세요.");
     } finally {
       setIsProcessing(false);
     }
@@ -193,7 +291,6 @@ export function LabelingManualPage() {
   const progress = images.length > 0 ? (labeledCount / images.length) * 100 : 0;
   const currentImage = images[currentIndex];
 
-  // 뷰 모드 계산
   const imagesPerPage = viewMode === "1x1" ? 1 : viewMode === "2x2" ? 4 : 9;
   const totalPages = Math.ceil(images.length / imagesPerPage);
   const currentReviewImages = images.slice(
@@ -265,7 +362,7 @@ export function LabelingManualPage() {
               <Card className="p-6 border-2">
                 <h3 className="mb-4">라벨 선택</h3>
                 <div className="space-y-2">
-                  {sessionClasses.map((className) => (
+                  {CHEXPERT_LABELS.map((className) => (
                     <Button
                       key={className}
                       onClick={() => handleSaveLabel(className)}
@@ -281,8 +378,18 @@ export function LabelingManualPage() {
               </Card>
               
               {unlabeledCount > 0 && (
-                <Button variant="outline" onClick={handleAutoLabelRemaining} className="w-full border-2" style={{ borderColor: '#6B3131', color: '#6B3131' }}>
-                  <Wand2 className="w-4 h-4 mr-2" /> 남은 데이터 자동 라벨링
+                <Button 
+                    variant="outline" 
+                    onClick={handleAutoLabelRemaining} 
+                    className="w-full border-2" 
+                    style={{ borderColor: '#6B3131', color: '#6B3131' }}
+                    disabled={isProcessing || !model}
+                >
+                  {isProcessing ? (
+                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 분석 중 ({Math.round(progressValue)}%)...</>
+                  ) : (
+                    <><Wand2 className="w-4 h-4 mr-2" /> 남은 데이터 자동 라벨링</>
+                  )}
                 </Button>
               )}
             </div>
@@ -320,7 +427,7 @@ export function LabelingManualPage() {
           </div>
         </div>
 
-        <div className={`grid gap-4 mb-6 ${viewMode === "1x1" ? "grid-cols-1" : viewMode === "2x2" ? "grid-cols-2" : "grid-cols-3"}`}>
+        <div className={`grid gap-4 mb-6 ${viewMode === "1x1" ? "grid-cols-1 max-w-2xl mx-auto" : viewMode === "2x2" ? "grid-cols-2" : "grid-cols-3"}`}>
           {currentReviewImages.map((img, index) => (
             <Card key={index} className="p-4 border-2">
               <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden">
@@ -329,9 +436,14 @@ export function LabelingManualPage() {
               <div className="space-y-2">
                 <p className="text-sm text-gray-600 truncate">{img.filename}</p>
                 <div className="flex items-center justify-between">
-                  <Badge style={{ backgroundColor: img.label === "Pneumonia" ? '#dc3545' : '#28a745' }} className="text-white">
-                    {img.label}
-                  </Badge>
+                  <select 
+                    value={img.label} 
+                    onChange={(e) => handleUpdateLabelInReview(index, e.target.value)}
+                    className="text-sm border rounded px-2 py-1 bg-white text-gray-800 cursor-pointer focus:ring-2 focus:ring-orange-500 outline-none w-full mr-2"
+                  >
+                    {CHEXPERT_LABELS.map(label => (<option key={label} value={label}>{label}</option>))}
+                  </select>
+                  {img.confidence && <span className="text-xs font-bold text-gray-500 whitespace-nowrap">{(img.confidence * 100).toFixed(0)}%</span>}
                 </div>
               </div>
             </Card>
@@ -340,13 +452,13 @@ export function LabelingManualPage() {
 
         {totalPages > 1 && (
           <div className="flex items-center justify-center gap-4 mb-6">
-            <Button variant="outline" onClick={() => setCurrentPage(Math.max(0, currentPage - 1))} disabled={currentPage === 0}>이전</Button>
-            <span className="text-sm text-gray-700">{currentPage + 1} / {totalPages}</span>
-            <Button variant="outline" onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))} disabled={currentPage === totalPages - 1}>다음</Button>
+            <Button variant="outline" onClick={() => setCurrentPage(Math.max(0, currentPage - 1))} disabled={currentPage === 0} style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', background: 'white' }}>이전</Button>
+            <span className="text-sm font-medium text-gray-700">{currentPage + 1} / {totalPages}</span>
+            <Button variant="outline" onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))} disabled={currentPage === totalPages - 1} style={{ padding: '8px 16px', border: '1px solid #ccc', borderRadius: '4px', background: 'white' }}>다음</Button>
           </div>
         )}
 
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center pb-12">
           <Button variant="outline" onClick={() => setStep("labeling")} className="px-6 py-6">
             <ChevronLeft className="w-4 h-4 mr-2" /> 수정하기
           </Button>
@@ -354,7 +466,7 @@ export function LabelingManualPage() {
             <Download className="w-4 h-4 mr-2" /> CSV 다운로드
           </Button>
           <Button onClick={handleStartTraining} style={{ backgroundColor: '#6B3131' }} className="text-white hover:opacity-90 px-8 py-6" disabled={isProcessing}>
-            {isProcessing ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> 변환 중...</> : <><Check className="w-4 h-4 mr-2" /> 학습 시작</>}
+            {isProcessing ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> 변환 중...</> : <><Check className="w-5 h-5 mr-2" /> 학습 시작</>}
           </Button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useSession } from "../contexts/SessionContext"; // ✅ 추가
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -13,9 +14,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../components/ui/select";
-import { X, Plus, Sparkles } from "lucide-react";
+import { X, Plus, Sparkles, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "../components/ui/alert";
-import { AlertCircle } from "lucide-react";
 
 // CheXpert 프리셋 데이터
 const CHEXPERT_CLASSES = [
@@ -38,6 +38,8 @@ const CHEXPERT_CLASSES = [
 export function SessionCreatePage() {
   const navigate = useNavigate();
   const { hospital } = useAuth();
+  const { addSession } = useSession(); // ✅ Context 사용
+
   const [sessionTitle, setSessionTitle] = useState("");
   const [dataType, setDataType] = useState("");
   const [classCount, setClassCount] = useState("");
@@ -70,7 +72,9 @@ export function SessionCreatePage() {
 
   // CheXpert 프리셋 적용
   const handleApplyCheXpert = () => {
-    const classNamesOnly = CHEXPERT_CLASSES.map(cls => cls.kr);
+    // 영어 이름(en)을 사용해야 모델 출력과 매핑하기 쉽습니다.
+    // (만약 한글로 보여주고 싶다면 별도 매핑 로직 필요)
+    const classNamesOnly = CHEXPERT_CLASSES.map(cls => cls.en); 
     setClassCount("14");
     setClassNames(classNamesOnly);
     setDataType("X-ray");
@@ -95,26 +99,28 @@ export function SessionCreatePage() {
       return;
     }
 
-    // 세션 정보 저장 (실제로는 API 호출)
-    const sessionData = {
+    // ✅ 세션 정보 저장
+    const newSessionId = Date.now().toString(); // ID 생성
+
+    const newSession = {
+      id: newSessionId,
       title: sessionTitle,
       dataType,
-      classCount: parseInt(classCount),
-      classNames,
-      notes,
-      createdBy: hospital.name,
-      createdAt: new Date().toISOString()
+      classNames, // 사용자가 설정한 클래스 목록
+      createdAt: new Date().toISOString(),
+      createdBy: hospital.name
     };
 
-    console.log("세션 생성:", sessionData);
+    addSession(newSession); // 전역 상태에 저장
+    console.log("세션 생성 완료:", newSession);
 
     // 성공 알림 표시
     setShowSuccessAlert(true);
 
-    // 3초 후 세션 목록으로 이동
+    // 2초 후 세션 목록으로 이동
     setTimeout(() => {
-      navigate("/upload");
-    }, 3000);
+      navigate("/session/list");
+    }, 2000);
   };
 
   return (
@@ -269,7 +275,7 @@ export function SessionCreatePage() {
                 <div className="flex flex-wrap gap-2 text-xs text-blue-700">
                   {CHEXPERT_CLASSES.map((cls) => (
                     <span key={cls.index} className="px-2 py-1 bg-blue-100 rounded">
-                      {cls.kr}
+                      {cls.en} {/* 영어 이름으로 표시 */}
                     </span>
                   ))}
                 </div>
