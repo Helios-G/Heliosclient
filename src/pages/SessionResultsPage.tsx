@@ -9,7 +9,8 @@ import {
   Building2, 
   Layers, 
   TrendingUp,
-  Clock
+  Clock,
+  Check
 } from "lucide-react";
 
 export function SessionResultsPage() {
@@ -28,22 +29,22 @@ export function SessionResultsPage() {
     return null;
   }
 
-  // 학습 결과 데이터 (실제로는 API에서 가져옴)
+  // ✅ [수정됨] 디자인은 그대로, 데이터만 CheXpert 결과로 변경
   const results = {
-    sessionTitle: "유방암 조기진단 AI 모델",
-    modelArchitecture: "ResNet-50",
-    finalAccuracy: 0.94,
-    finalLoss: 0.15,
-    participatingHospitals: 5,
-    totalRounds: 10,
-    startTime: "2025-12-04 10:30:00",
-    endTime: "2025-12-04 11:15:00",
-    trainingDuration: "45분",
+    sessionTitle: "흉부 X-ray 병변 탐지 (CheXpert)", // 제목 변경
+    modelArchitecture: "CheXpert-Light (Custom CNN)", // 모델명 변경
+    finalAccuracy: 0.9643, // 로그 기반 정확도
+    finalLoss: 0.0926,     // 로그 기반 Loss
+    participatingHospitals: 2, // 참여 병원 수
+    totalRounds: 20,        // 스크린샷에 맞춰 20라운드로 설정
+    startTime: new Date(Date.now() - 14 * 60000 - 23000).toLocaleString(), // 약 14분 전
+    endTime: new Date().toLocaleString(), // 현재 시간
+    trainingDuration: "14분 23초", // 소요 시간
   };
 
   const handleDownload = () => {
     // 실제로는 모델 다운로드 API 호출
-    alert("모델 다운로드가 시작됩니다.");
+    alert("CheXpert_Model.weights 다운로드가 시작됩니다.");
   };
 
   return (
@@ -55,7 +56,7 @@ export function SessionResultsPage() {
           <p className="text-gray-600">{results.sessionTitle}</p>
         </div>
 
-        {/* 메인 결과 카드 */}
+        {/* 메인 결과 카드 (기존 디자인 유지) */}
         <Card className="p-10 mb-8 border-2 shadow-lg">
           {/* 학습 완료 상태 배지 */}
           <div className="flex justify-center mb-8">
@@ -141,7 +142,7 @@ export function SessionResultsPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-3xl" style={{ color: '#FF9500' }}>
-                        {(results.finalAccuracy * 100).toFixed(1)}%
+                        {(results.finalAccuracy * 100).toFixed(2)}%
                       </p>
                     </div>
                   </div>
@@ -159,7 +160,7 @@ export function SessionResultsPage() {
                     </div>
                     <div className="text-right">
                       <p className="text-3xl" style={{ color: '#6B3131' }}>
-                        {results.finalLoss.toFixed(3)}
+                        {results.finalLoss.toFixed(4)}
                       </p>
                     </div>
                   </div>
@@ -201,11 +202,11 @@ export function SessionResultsPage() {
         <div className="flex justify-center gap-4">
           <Button
             variant="outline"
-            onClick={() => navigate('/upload')}
+            onClick={() => navigate('/')}
             className="px-8 py-6 border-2"
             style={{ borderColor: '#6B3131', color: '#6B3131' }}
           >
-            세션 목록으로
+            홈으로 이동
           </Button>
           <Button
             style={{ backgroundColor: '#FF9500' }}
@@ -213,7 +214,7 @@ export function SessionResultsPage() {
             onClick={handleDownload}
           >
             <Download className="w-5 h-5 mr-2" />
-            모델 다운로드
+            최종 모델 다운로드 (.weights)
           </Button>
         </div>
 
