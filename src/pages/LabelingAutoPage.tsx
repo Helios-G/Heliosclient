@@ -93,38 +93,52 @@ export function LabelingAutoPage() {
       const results: LabeledData[] = [];
       const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
       
+      // ✅ [최적화] 메모리 누수 방지를 위해 배치 처리
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
         
+        // 1. 이미지 URL 생성
         const imgElement = new Image();
         const imageUrl = URL.createObjectURL(file);
         imgElement.src = imageUrl;
         
         try {
+            // ✅ [핵심 1] onload 대신 decode() 사용
+            // 이미지가 GPU에서 사용할 준비가 될 때까지 확실하게 기다림 (0점 방지)
             await imgElement.decode();
-        } catch (e) { continue; }
+        } catch (e) {
+            console.error(`이미지 디코딩 실패 (건너뜀): ${file.name}`, e);
+            URL.revokeObjectURL(imageUrl); // 실패한 URL 해제
+            continue; 
+        }
 
+        // 2. 추론 및 텐서 생성 (메모리 관리 철저)
         const { processedTensor, probabilities, rawLogits } = tf.tidy(() => {
+            // ✅ [핵심 2] Canvas 없이 이미지 태그에서 바로 변환 (메모리 절약)
             let img = tf.browser.fromPixels(imgElement);
+            
+            // 리사이징 (320x320)
             img = tf.image.resizeBilinear(img, [320, 320]);
-            // ✅ [수정 1] 전처리 단순화 (ImageNet Mean/Std 제거)
-            // X-ray 모델은 보통 0~1 사이 값만 줘도 잘 작동합니다.
+
+            // 정규화 (0~1)
             img = img.div(255.0);
             
-            // ❌ 표준화 제거 (이게 데이터를 왜곡시켰을 가능성 큼)
+            // 표준화 (ImageNet Mean/Std) - CheXpert 모델 필수
             const mean = tf.tensor([0.485, 0.456, 0.406]);
             const std = tf.tensor([0.229, 0.224, 0.225]);
             img = img.sub(mean).div(std);
 
-            // Transpose (유지)
+            // Transpose (NHWC -> NCHW)
             img = img.transpose([2, 0, 1]); 
 
+            // 배치 차원 추가
             const batch = img.expandDims(0);
+            
             const output = model.predict(batch) as tf.Tensor;
             const probs = output.sigmoid();
             
             return {
-                processedTensor: batch.clone(), 
+                processedTensor: batch.clone(), // 나중에 학습에 쓸 텐서만 복사해서 밖으로 뺌
                 probabilities: probs.dataSync(),
                 rawLogits: output.dataSync()
             };
@@ -132,16 +146,13 @@ export function LabelingAutoPage() {
 
         const probsArray = Array.from(probabilities);
         
-        // 🔍 [디버깅]
-        console.log(`📄 ${file.name}`);
-        console.log(`   👉 Probabilities:`, probsArray);
+        // 🔍 [디버깅] 0점 나오는지 확인
+        // console.log(`📄 ${file.name} -> Max Prob: ${Math.max(...probsArray).toFixed(4)}`);
 
-        // ✅ [수정 2] 질병 우선순위 로직 (Disease Priority)
-        // 0번(No Finding)을 제외하고, 나머지 중에서 가장 높은 걸 찾음
+        // 질병 우선순위 판단 로직
         let maxDiseaseScore = -1;
         let maxDiseaseIndex = -1;
 
-        // 인덱스 1번부터 13번까지만 검사
         for (let j = 1; j < probsArray.length; j++) {
             if (probsArray[j] > maxDiseaseScore) {
                 maxDiseaseScore = probsArray[j];
@@ -149,23 +160,26 @@ export function LabelingAutoPage() {
             }
         }
 
+        const noFindingScore = probsArray[0];
         let finalLabel = "";
         let finalScore = 0;
 
-        // 💡 "No Finding" 점수가 아무리 높아도, 
-        // 어떤 질병 확률이 0.5(50%)를 넘으면 그 질병으로 판단합니다.
-        if (maxDiseaseScore > 0.5) {
+        if (maxDiseaseScore > 0.3) {
             finalLabel = CHEXPERT_LABELS[maxDiseaseIndex];
             finalScore = maxDiseaseScore;
         } else {
-            // 질병 확률이 다 낮으면 그때서야 No Finding
-            finalLabel = "No Finding";
-            finalScore = probsArray[0];
+            if (noFindingScore > maxDiseaseScore) {
+                finalLabel = CHEXPERT_LABELS[0];
+                finalScore = noFindingScore;
+            } else {
+                finalLabel = CHEXPERT_LABELS[maxDiseaseIndex];
+                finalScore = maxDiseaseScore;
+            }
         }
 
         results.push({
           filename: file.name,
-          imageUrl,
+          imageUrl, // 검수 화면을 위해 유지
           label: finalLabel,
           confidence: finalScore,
           fullProbabilities: probsArray,
@@ -173,7 +187,10 @@ export function LabelingAutoPage() {
         });
         
         setLabelingProgress(((i + 1) / imageFiles.length) * 100);
-        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        // ✅ [핵심 3] 브라우저 멈춤 방지 (UI 스레드 양보)
+        // setTimeout 대신 tf.nextFrame()을 쓰면 가장 효율적으로 쉼
+        await tf.nextFrame(); 
       }
       
       setLabeledData(results);
