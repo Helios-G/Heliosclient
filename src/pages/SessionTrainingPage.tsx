@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Card } from "../components/ui/card";
@@ -11,6 +11,7 @@ import { Flwr } from "../lib/flwr";
 import { MyFlowerClient } from "../lib/fl_client";
 
 import { useTrainingData } from "../contexts/TrainingDataContext";
+import { useSession } from "../contexts/SessionContext";
 
 type TrainingStatus = "preparing" | "training" | "completed";
 
@@ -25,12 +26,20 @@ export function SessionTrainingPage() {
   const navigate = useNavigate();
   const { hospital } = useAuth();
   
-  const { xTrain, yTrain } = useTrainingData();
+  // ✅ setFinalMetrics 가져오기
+  const { xTrain, yTrain, xTest, yTest, setFinalMetrics } = useTrainingData();
+  const { getSession } = useSession();
   
   const [status, setStatus] = useState<TrainingStatus>("preparing");
   const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [logMessage, setLogMessage] = useState("서버 연결 대기 중...");
+  
+  // 시작 시간 기록
+  const [startTime] = useState(new Date().toLocaleString());
+  
+  // 마지막 결과값 저장용 Ref
+  const lastMetricsRef = useRef({ acc: 0, loss: 0 });
 
   useEffect(() => {
     if (!hospital) navigate("/login");
@@ -45,14 +54,12 @@ export function SessionTrainingPage() {
     try {
       const client = new MyFlowerClient();
 
-      // ✅ [수정 1] Round 계산 로직 변경
-      // 기존: epoch + 1 (항상 1이 나옴)
-      // 변경: 현재 데이터 개수 + 1 (1, 2, 3... 증가)
       client.setRoundCallback((epoch: number, loss: number, acc: number) => {
+        // ✅ 최신값 저장 (Ref에 저장해둬야 나중에 씀)
+        lastMetricsRef.current = { acc, loss };
+
         setTrainingData((prev) => {
-          const newRound = prev.length + 1; // 현재 쌓인 데이터 개수 + 1
-          
-          // 상단 상태 표시용 Round 업데이트
+          const newRound = prev.length + 1;
           setCurrentRound(newRound);
           setLogMessage(`Round ${newRound} 완료: 정확도 ${(acc * 100).toFixed(2)}%`);
 
@@ -71,14 +78,30 @@ export function SessionTrainingPage() {
 
       if (xTrain && yTrain) {
         console.log("💉 진짜 데이터를 클라이언트에 주입합니다.");
-        client.addData(xTrain, yTrain);
+        client.addData(xTrain, yTrain, xTest, yTest);
       } else {
-        console.warn("⚠️ 주의: 데이터가 없습니다! (새로고침 했거나 데이터 전송 실패)");
+        console.warn("⚠️ 주의: 데이터가 없습니다!");
         setLogMessage("⚠️ 데이터가 없어 가짜 데이터로 학습합니다.");
       }
 
       const flwr = new Flwr();
       await flwr.connect("ws://localhost:8080", client);
+
+      // ✅ [핵심 추가] 학습 완료 후 결과 저장
+      const finalResult = {
+        accuracy: lastMetricsRef.current.acc,
+        loss: lastMetricsRef.current.loss,
+        rounds: 5, // 총 라운드 수
+        startTime: startTime,
+        endTime: new Date().toLocaleString()
+      };
+
+      if (setFinalMetrics) {
+          setFinalMetrics(finalResult);
+          // 백업용 로컬스토리지 저장
+          localStorage.setItem("session_result", JSON.stringify(finalResult));
+          console.log("💾 결과 데이터 저장 완료:", finalResult);
+      }
 
       setStatus("completed");
       setLogMessage("모든 학습 라운드가 완료되었습니다. 결과 페이지로 이동합니다...");
@@ -139,7 +162,6 @@ export function SessionTrainingPage() {
             <Card className="p-8 border-2 shadow-md">
               <div className="mb-6 flex justify-between items-center">
                 <div>
-                  {/* Epoch -> Round로 텍스트 변경 */}
                   <h3 className="mb-2 text-xl font-bold" style={{ color: '#6B3131' }}>현재 Round: {currentRound}</h3>
                   <p className="text-gray-600">서버와 통신하며 모델을 학습시키고 있습니다...</p>
                 </div>
@@ -148,40 +170,24 @@ export function SessionTrainingPage() {
                 </div>
               </div>
 
-              {/* 정확도 그래프 */}
               <div className="mb-8">
                 <h4 className="mb-4 font-semibold" style={{ color: '#6B3131' }}>정확도 (Accuracy)</h4>
                 <ResponsiveContainer width="100%" height={300}>
-                  {/* ✅ [수정 2] margin 추가 및 Legend 위치 변경 */}
                   <LineChart data={trainingData} margin={{ top: 5, right: 30, left: 20, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="round" 
-                      // 라벨을 Round로 변경하고 위치 조정
                       label={{ value: 'Round', position: 'insideBottom', offset: -15 }} 
-                      allowDecimals={false} // 소수점 안 나오게 (1, 2, 3...)
+                      allowDecimals={false} 
                     />
-                    <YAxis 
-                      domain={[0, 1]} 
-                      label={{ value: 'Accuracy', angle: -90, position: 'insideLeft' }} 
-                    />
+                    <YAxis domain={[0, 1]} label={{ value: 'Accuracy', angle: -90, position: 'insideLeft' }} />
                     <Tooltip />
-                    {/* 범례를 위로 올려서 겹침 방지 */}
                     <Legend verticalAlign="top" height={36}/>
-                    <Line 
-                      type="monotone" 
-                      dataKey="accuracy" 
-                      stroke="#FF9500" 
-                      strokeWidth={3} 
-                      name="정확도" 
-                      dot={{ fill: '#FF9500', r: 4 }} 
-                      isAnimationActive={false} 
-                    />
+                    <Line type="monotone" dataKey="accuracy" stroke="#FF9500" strokeWidth={3} name="정확도" dot={{ fill: '#FF9500', r: 4 }} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Loss 그래프 */}
               <div>
                 <h4 className="mb-4 font-semibold" style={{ color: '#6B3131' }}>손실 (Loss)</h4>
                 <ResponsiveContainer width="100%" height={300}>
@@ -192,20 +198,10 @@ export function SessionTrainingPage() {
                       label={{ value: 'Round', position: 'insideBottom', offset: -15 }} 
                       allowDecimals={false}
                     />
-                    <YAxis 
-                      label={{ value: 'Loss', angle: -90, position: 'insideLeft' }} 
-                    />
+                    <YAxis label={{ value: 'Loss', angle: -90, position: 'insideLeft' }} />
                     <Tooltip />
                     <Legend verticalAlign="top" height={36}/>
-                    <Line 
-                      type="monotone" 
-                      dataKey="loss" 
-                      stroke="#6B3131" 
-                      strokeWidth={3} 
-                      name="손실" 
-                      dot={{ fill: '#6B3131', r: 4 }} 
-                      isAnimationActive={false}
-                    />
+                    <Line type="monotone" dataKey="loss" stroke="#6B3131" strokeWidth={3} name="손실" dot={{ fill: '#6B3131', r: 4 }} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>

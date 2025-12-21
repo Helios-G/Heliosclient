@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { useSession } from "../contexts/SessionContext"; // ✅ 추가
+import { useSession } from "../contexts/SessionContext";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -38,10 +38,14 @@ const CHEXPERT_CLASSES = [
 export function SessionCreatePage() {
   const navigate = useNavigate();
   const { hospital } = useAuth();
-  const { addSession } = useSession(); // ✅ Context 사용
+  const { addSession } = useSession();
 
   const [sessionTitle, setSessionTitle] = useState("");
   const [dataType, setDataType] = useState("");
+  
+  // ✅ [추가됨] 알고리즘 선택 State
+  const [algorithm, setAlgorithm] = useState("FedAvg");
+
   const [classCount, setClassCount] = useState("");
   const [classNames, setClassNames] = useState<string[]>([]);
   const [currentClassName, setCurrentClassName] = useState("");
@@ -72,8 +76,6 @@ export function SessionCreatePage() {
 
   // CheXpert 프리셋 적용
   const handleApplyCheXpert = () => {
-    // 영어 이름(en)을 사용해야 모델 출력과 매핑하기 쉽습니다.
-    // (만약 한글로 보여주고 싶다면 별도 매핑 로직 필요)
     const classNamesOnly = CHEXPERT_CLASSES.map(cls => cls.en); 
     setClassCount("14");
     setClassNames(classNamesOnly);
@@ -99,19 +101,20 @@ export function SessionCreatePage() {
       return;
     }
 
-    // ✅ 세션 정보 저장
-    const newSessionId = Date.now().toString(); // ID 생성
+    // 세션 정보 저장
+    const newSessionId = Date.now().toString();
 
     const newSession = {
       id: newSessionId,
       title: sessionTitle,
       dataType,
-      classNames, // 사용자가 설정한 클래스 목록
+      algorithm, // ✅ 저장할 때 알고리즘 정보 포함
+      classNames,
       createdAt: new Date().toISOString(),
       createdBy: hospital.name
     };
 
-    addSession(newSession); // 전역 상태에 저장
+    addSession(newSession);
     console.log("세션 생성 완료:", newSession);
 
     // 성공 알림 표시
@@ -182,6 +185,26 @@ export function SessionCreatePage() {
             </Select>
           </div>
 
+          {/* ✅ 알고리즘 선택 (추가됨) */}
+          <div>
+            <Label htmlFor="algorithm" className="mb-2 block">
+              연합학습 알고리즘 <span className="text-red-500">*</span>
+            </Label>
+            <Select value={algorithm} onValueChange={setAlgorithm}>
+              <SelectTrigger className="border-2">
+                <SelectValue placeholder="알고리즘을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="FedAvg">FedAvg (기본 - 가중 평균)</SelectItem>
+                <SelectItem value="FedAdam">FedAdam (고급 - Non-IID 데이터에 강함)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-gray-500 mt-1">
+              * FedAvg: 일반적인 상황에 적합<br/>
+              * FedAdam: 병원 간 데이터 차이가 클 때(Non-IID) 성능 우수
+            </p>
+          </div>
+
           {/* 질환 개수 */}
           <div>
             <Label htmlFor="class-count" className="mb-2 block">
@@ -195,7 +218,6 @@ export function SessionCreatePage() {
               value={classCount}
               onChange={(e) => {
                 setClassCount(e.target.value);
-                // 개수가 줄어들면 초과된 클래스명 제거
                 const count = parseInt(e.target.value) || 0;
                 if (classNames.length > count) {
                   setClassNames(classNames.slice(0, count));
@@ -275,7 +297,7 @@ export function SessionCreatePage() {
                 <div className="flex flex-wrap gap-2 text-xs text-blue-700">
                   {CHEXPERT_CLASSES.map((cls) => (
                     <span key={cls.index} className="px-2 py-1 bg-blue-100 rounded">
-                      {cls.en} {/* 영어 이름으로 표시 */}
+                      {cls.en}
                     </span>
                   ))}
                 </div>
