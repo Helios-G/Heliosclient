@@ -81,25 +81,62 @@ npm run dev
 ## 📁 프로젝트 구조
 
 ```
-HELIOS/
-├── federated/
-│   └── server/               # 🐍 Python 연합학습 서버
-│       ├── simple_server.py  # WebSocket 기반 FL 서버 (FedAvg/FedAdam)
-│       ├── convert.py        # PyTorch -> TF.js 모델 변환 스크립트
-│       └── saved_models/     # 학습된 글로벌 모델 저장소 (.npz)
+├── public/
+│   └── models/
+│       └── chexpert_tfjs/    # 📂 변환된 TF.js 모델 파일 저장소
+│           ├── model.json    # 모델 구조 (GraphModel)
+│           └── group1-shard* # 모델 가중치 (Binary)
 │
-├── Heliosclient/             # ⚛️ React 웹 클라이언트
-│   ├── public/
-│   │   └── models/           # 변환된 TF.js 모델 파일 (CheXpert)
-│   ├── src/
-│   │   ├── lib/
-│   │   │   ├── fl_client.js  # TF.js 기반 로컬 학습 로직 (CNN 모델)
-│   │   │   └── flwr/         # Flower WebSocket 통신 모듈
-│   │   ├── pages/            # 주요 페이지 (라벨링, 학습, 결과 등)
-│   │   ├── contexts/         # 전역 상태 관리 (데이터, 세션)
-│   │   └── ...
-│   └── ...
-└── ...
+├── src/
+│   ├── lib/                  # 🧠 핵심 AI 및 통신 로직
+│   │   ├── fl_client.js      # [Core] TF.js 로컬 학습 작업자
+│   │   │                     # - CNN 모델 정의 및 컴파일
+│   │   │                     # - fit(): 로컬 데이터 학습 수행
+│   │   │                     # - evaluate(): 테스트셋 평가
+│   │   └── flwr/             # [Network] Flower 통신 모듈
+│   │       └── index.js      # - WebSocket 연결 및 메시지 파싱
+│   │                         # - 서버 명령(fit, evaluate)을 fl_client에 전달
+│   │
+│   ├── contexts/             # 🌐 전역 상태 관리
+│   │   ├── TrainingDataContext.tsx # 학습용 텐서(Tensor) 데이터 보관함
+│   │   │                           # (이미지 -> Tensor 변환 후 메모리 유지)
+│   │   ├── SessionContext.tsx      # 세션 정보(알고리즘, 클래스 등) 관리
+│   │   └── AuthContext.tsx         # 사용자 로그인 상태 관리
+│   │
+│   ├── pages/                # 🖥️ 화면 구성 (Pages)
+│   │   ├── HomePage.tsx            # 서비스 메인 홈 (대시보드 진입)
+│   │   ├── LoginPage.tsx           # 사용자 로그인
+│   │   ├── SignUpPage.tsx          # 회원가입
+│   │   ├── MyPage.tsx              # 사용자 정보 및 참여 이력 관리
+│   │   │
+│   │   ├── SessionListPage.tsx     # 참여 가능한 연합학습 세션 목록 조회
+│   │   ├── SessionCreatePage.tsx   # 세션 생성 (알고리즘, 데이터셋, 클래스 설정)
+│   │   ├── SessionDetailPage.tsx   # 세션 상세 정보 확인
+│   │   ├── SessionJoinPage.tsx     # 세션 참여 방식(자동/수동) 선택
+│   │   │
+│   │   ├── LabelingAutoPage.tsx    # [AI] 자동 라벨링 (Canvas 최적화 적용)
+│   │   │                           # - 320x320 리사이징 및 추론 수행
+│   │   ├── LabelingManualPage.tsx  # [AI] 수동 검수 및 데이터 변환
+│   │   │                           # - Train/Test(8:2) 분할 및 텐서 생성
+│   │   │
+│   │   ├── SessionTrainingPage.tsx # [FL] 실시간 연합학습 대시보드
+│   │   │                           # - 실시간 Loss/Acc 그래프 시각화
+│   │   ├── SessionResultsPage.tsx  # 학습 결과 리포트 및 성능 지표 확인
+│   │   │
+│   │   ├── ModelDownloadPage.tsx   # 학습 완료된 모델 목록 및 다운로드
+│   │   ├── ModelDetailPage.tsx     # 모델 상세 스펙 확인
+│   │   ├── AdminPage.tsx           # 관리자 전용 페이지 (승인/관리)
+│   │   └── NotFoundPage.tsx        # 404 에러 페이지
+│   │
+│   ├── components/           # 🧩 UI 컴포넌트
+│   │   ├── ui/               # 버튼, 카드, 입력창 등 (Re-usable)
+│   │   └── Layout.tsx        # 헤더/푸터를 포함한 공통 레이아웃
+│   │
+│   ├── App.tsx               # 라우팅(Routing) 및 Context Provider 설정
+│   └── main.tsx              # React 앱 진입점
+│
+├── package.json              # 의존성 관리 (@tensorflow/tfjs, recharts 등)
+└── vite.config.ts            # Vite 빌드 설정
 ```
 
 ---
