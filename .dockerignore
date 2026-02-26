@@ -1,0 +1,4 @@
+# 로컬의 node_modules가 복사되는 것을 방지
+**/node_modules
+**/dist
+.git
