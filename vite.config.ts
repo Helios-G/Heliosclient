@@ -55,6 +55,13 @@
     },
     server: {
       port: 3000,
-      open: true,
-    },
+      proxy: {
+        // ✅ [핵심 추가] 프론트가 '/sessions'로 요청하면, 몰래 '8080' 포트로 넘겨줍니다.
+        '/sessions': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+          secure: false,
+        }
+      }
+    }
   });

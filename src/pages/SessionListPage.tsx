@@ -1,43 +1,82 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { useSession } from "../contexts/SessionContext";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
 import { Plus } from "lucide-react";
 
 export function SessionListPage() {
   const navigate = useNavigate();
   const { hospital } = useAuth();
-  const { sessions } = useSession();
-  const [filter, setFilter] = useState("all");
+  
+  const [mySessions, setMySessions] = useState<any[]>([]); 
+  const [allSessions, setAllSessions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!hospital) {
       navigate("/login");
+      return;
     }
+
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+        // ✅ 무조건 백엔드에서 직접 가져옵니다.
+        const [myRes, allRes] = await Promise.all([
+          fetch(`/sessions/my?hospitalId=${hospital.id}`),
+          fetch(`/sessions`)
+        ]);
+
+        const myData = await myRes.json();
+        const allData = await allRes.json();
+
+        setMySessions(myData);
+        setAllSessions(allData);
+      } catch (error) {
+        console.error("데이터 로드 실패:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
   }, [hospital, navigate]);
 
   if (!hospital) return null;
 
-  // 필터링 로직
-  const filteredSessions = sessions.filter(session => {
-    if (filter === "all") return true;
-    const status = session.status || "waiting"; 
-    if (filter === "recruiting") return status === "waiting";
-    if (filter === "processing") return status === "running";
-    if (filter === "completed") return status === "completed";
-    return true;
-  });
-
-  // 참여 중인 세션 (데모용: 첫 번째 세션)
-  const mySessions = sessions.length > 0 ? [sessions[0]] : [];
+  // 테이블 행을 그리는 헬퍼 함수 (중복 제거)
+  const renderRow = (session: any, type: 'my' | 'all') => (
+    <tr key={session.sessionId} className="hover:bg-gray-50">
+      <td className="px-6 py-4">
+        <span className="text-gray-600 font-medium">
+          {session.status === 2 ? "진행 중" : session.status === 3 ? "완료" : "대기 중"}
+        </span>
+      </td>
+      <td className="px-6 py-4 font-medium text-[#FF9500]">
+        {session.title}
+      </td>
+      <td className="px-6 py-4 text-center">
+        {session.currentParticipants} / {session.maxParticipants}
+      </td>
+      <td className="px-6 py-4 text-center">
+        <Button 
+          size="sm" 
+          style={{ backgroundColor: '#5D4037' }}
+          className="text-white hover:opacity-90 w-20 rounded-md"
+          onClick={() => navigate(`/session/${session.sessionId}/join`)}
+          disabled={session.status === 3}
+        >
+          {type === 'my' ? "현황" : "참여"}
+        </Button>
+      </td>
+    </tr>
+  );
 
   return (
+    
     <div className="min-h-screen py-12 px-4 bg-white">
       <div className="max-w-6xl mx-auto">
-        
         {/* 1. 상단 헤더 & 생성 버튼 */}
         <div className="flex justify-between items-start mb-8">
           <div>
@@ -64,141 +103,49 @@ export function SessionListPage() {
           </div>
         </div>
 
-        {/* 3. 참여 중인 세션 */}
+        {/* 참여 중인 세션 */}
         <div className="mb-12">
           <h3 className="text-lg font-bold mb-4 text-gray-700">참여 중인 세션</h3>
-          
           <div className="overflow-hidden rounded-lg border border-gray-200">
-            <table className="w-full border-collapse bg-white text-left text-sm text-gray-500">
-              <thead className="text-white" style={{ backgroundColor: '#6B3131' }}>
+            <table className="w-full text-left text-sm">
+              <thead className="text-white" style={{ backgroundColor: '#5D4037' }}>
                 <tr>
-                  <th scope="col" className="px-6 py-4 font-medium w-[15%]">진행 상태</th>
-                  <th scope="col" className="px-6 py-4 font-medium w-[55%]">세션 제목</th>
-                  <th scope="col" className="px-6 py-4 font-medium text-center w-[15%]">참여 기관 수</th>
-                  <th scope="col" className="px-6 py-4 font-medium text-center w-[15%]">현황</th>
+                  <th className="px-6 py-4">진행 상태</th>
+                  <th className="px-6 py-4">세션 제목</th>
+                  <th className="px-6 py-4 text-center">참여 기관</th>
+                  <th className="px-6 py-4 text-center">현황</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 border-t border-gray-100">
-                {mySessions.map((session) => (
-                  <tr key={session.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4">
-                      <span className="text-gray-600 font-medium">
-                        {session.status === 'running' ? '진행 중' : '대기 중'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 font-medium text-[#FF9500]">
-                      {session.title}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      {session.participants} / {session.targetParticipants}
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <Button 
-                        size="sm" 
-                        style={{ backgroundColor: '#6B3131' }}
-                        className="text-white hover:opacity-90 w-20 rounded-md"
-                        onClick={() => navigate(`/session/${session.id}/join`)}
-                      >
-                        현황
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-                {/* 빈 행 (디자인 유지용) */}
-                <tr>
-                  <td className="px-6 py-4 text-gray-400">진행 중</td>
-                  <td className="px-6 py-4 text-gray-400">-</td>
-                  <td className="px-6 py-4 text-center text-gray-400">-</td>
-                  <td className="px-6 py-4 text-center text-gray-400">-</td>
-                </tr>
+              <tbody className="bg-white divide-y">
+                {mySessions.length > 0 ? mySessions.map(s => renderRow(s, 'my')) : (
+                  <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">참여 중인 세션이 없습니다.</td></tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* 4. 세션 목록 필터 (✅ 스타일 수정됨) */}
-        <div className="flex items-center gap-4 mb-4">
-          <span className="text-gray-700 font-medium">세션 목록 필터</span>
-          <div className="flex gap-2">
-            {[
-              { id: 'all', label: '전체' },
-              { id: 'recruiting', label: '대기 중' },
-              { id: 'processing', label: '진행 중' },
-              { id: 'completed', label: '완료' }
-            ].map((btn) => {
-              const isActive = filter === btn.id;
-              return (
-                <button
-                  key={btn.id}
-                  onClick={() => setFilter(btn.id)}
-                  className="px-4 py-1.5 text-sm rounded-md border transition-colors"
-                  style={{
-                    // ✅ 인라인 스타일로 색상 강제 지정 (충돌 방지)
-                    backgroundColor: isActive ? '#FF9500' : 'white',
-                    color: isActive ? 'white' : '#FF9500',
-                    borderColor: '#FF9500',
-                    fontWeight: isActive ? 'bold' : 'normal',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {btn.label}
-                </button>
-              );
-            })}
+        {/* 전체 세션 목록 */}
+        <div>
+          <h3 className="text-lg font-bold mb-4 text-gray-700">전체 세션 목록</h3>
+          <div className="overflow-hidden rounded-lg border border-gray-200">
+            <table className="w-full text-left text-sm">
+              <thead className="text-white" style={{ backgroundColor: '#5D4037' }}>
+                <tr>
+                  <th className="px-6 py-4">상태</th>
+                  <th className="px-6 py-4">세션 제목</th>
+                  <th className="px-6 py-4 text-center">참여 기관</th>
+                  <th className="px-6 py-4 text-center">참여하기</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y">
+                {allSessions.length > 0 ? allSessions.map(s => renderRow(s, 'all')) : (
+                  <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-400">등록된 세션이 없습니다.</td></tr>
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
-
-        {/* 5. 전체 세션 목록 테이블 */}
-        <div className="overflow-hidden rounded-lg border border-gray-200">
-          <table className="w-full border-collapse bg-white text-left text-sm text-gray-500">
-            <thead className="text-white" style={{ backgroundColor: '#6B3131' }}>
-              <tr>
-                <th scope="col" className="px-6 py-4 font-medium w-[15%]">진행 상태</th>
-                <th scope="col" className="px-6 py-4 font-medium w-[55%]">세션 제목</th>
-                <th scope="col" className="px-6 py-4 font-medium text-center w-[15%]">참여 기관 수</th>
-                <th scope="col" className="px-6 py-4 font-medium text-center w-[15%]">참여하기</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 border-t border-gray-100">
-              {filteredSessions.map((session) => (
-                <tr key={session.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <span className="text-gray-600 font-medium">
-                      {session.status === "running" ? "진행 중" :
-                       session.status === "completed" ? "완료" : "대기 중"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-medium text-[#FF9500]">
-                    {session.title}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {session.participants || 0} / {session.targetParticipants || 5}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <Button 
-                      size="sm"
-                      style={{ backgroundColor: '#6B3131' }}
-                      className="text-white hover:opacity-90 w-20 rounded-md"
-                      onClick={() => navigate(`/session/${session.id}/join`)}
-                      disabled={session.status === "completed"}
-                    >
-                      {session.status === "completed" ? "완료됨" : "참여"}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              
-              {filteredSessions.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-6 py-12 text-center text-gray-500">
-                    해당하는 세션이 없습니다.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
+import { downloadModelFiles } from "../utils/download"; // ✅ 헬퍼 함수 import
 import { 
   Download, 
   Calendar, 
@@ -43,8 +44,8 @@ export function SessionResultsPage() {
   };
 
   const handleDownload = () => {
-    // 실제로는 모델 다운로드 API 호출
-    alert("CheXpert_Model.weights 다운로드가 시작됩니다.");
+    // 방금 학습한 모델 이름으로 다운로드
+    downloadModelFiles("trained_chexnet_model");
   };
 
   return (
@@ -208,13 +209,13 @@ export function SessionResultsPage() {
           >
             홈으로 이동
           </Button>
-          <Button
-            style={{ backgroundColor: '#FF9500' }}
+          <Button 
+            style={{ backgroundColor: '#FF9500' }} 
             className="text-white hover:opacity-90 px-8 py-6"
-            onClick={handleDownload}
+            onClick={handleDownload} 
           >
             <Download className="w-5 h-5 mr-2" />
-            최종 모델 다운로드 (.weights)
+            모델 다운로드
           </Button>
         </div>
 
