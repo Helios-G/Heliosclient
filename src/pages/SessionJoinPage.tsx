@@ -4,6 +4,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useSession } from "../contexts/SessionContext";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import { 
   Database, 
   Users, 
@@ -11,7 +12,8 @@ import {
   Wand2, 
   MousePointerClick,
   Cpu,
-  Check // ✅ [수정] 여기에 Check 아이콘 추가!
+  Check,
+  Loader2 
 } from "lucide-react";
 
 export function SessionJoinPage() {
@@ -21,6 +23,7 @@ export function SessionJoinPage() {
   const { getSession } = useSession();
 
   const [session, setSession] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!hospital) {
@@ -28,172 +31,175 @@ export function SessionJoinPage() {
       return;
     }
 
-    const foundSession = getSession(sessionId || "");
-    if (foundSession) {
-      setSession(foundSession);
-    } else {
-      alert("세션을 찾을 수 없습니다.");
-      navigate("/session/list");
-    }
+    const fetchSessionDetail = async () => {
+      setIsLoading(true);
+      try {
+        // 1. 먼저 로컬 Context(방금 만든 데이터)에서 확인
+        const localSession = getSession(sessionId || "");
+        
+        // 2. 백엔드에서 최신 목록 가져오기
+        const response = await fetch(`/sessions`);
+        const allSessions = await response.json();
+        
+        // sessionId 타입(숫자 vs 문자열) 차이 방지를 위해 == 사용
+        const serverSession = allSessions.find((s: any) => s.sessionId == sessionId);
+
+        if (serverSession) {
+          console.log("🔍 백엔드에서 로드된 데이터:", serverSession);
+          setSession(serverSession);
+        } else if (localSession) {
+          console.log("🔍 로컬 메모리에서 로드된 데이터:", localSession);
+          setSession(localSession);
+        } else {
+          alert("세션 정보를 찾을 수 없습니다.");
+          navigate("/session/list");
+        }
+      } catch (err) {
+        console.error("세션 로드 실패:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchSessionDetail();
   }, [sessionId, hospital, navigate, getSession]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+        <span className="ml-3 font-medium">세션 데이터 동기화 중...</span>
+      </div>
+    );
+  }
 
   if (!session) return null;
 
-  const handleAutoLabeling = () => {
-    navigate(`/session/${sessionId}/labeling/auto`);
-  };
+  // ==========================================
+  // 🔍 [에러 방지 핵심 로직] 데이터 정규화
+  // ==========================================
+  
+  // 1. 질환 목록 추출 (어떤 이름으로 들어오든 배열로 변환)
+  let displayClasses: string[] = [];
+  if (Array.isArray(session.classList)) {
+    displayClasses = session.classList;
+  } else if (Array.isArray(session.classNames)) {
+    displayClasses = session.classNames;
+  } else if (typeof session.labelClassList === 'string' && session.labelClassList.length > 0) {
+    displayClasses = session.labelClassList.split(',').map((s: string) => s.trim());
+  }
 
-  const handleManualLabeling = () => {
-    navigate(`/session/${sessionId}/labeling/manual`);
-  };
+  // 2. 클래스 개수 (데이터가 없으면 0으로 표시)
+  const classCount = session.labelClassCount || session.classAmount || displayClasses.length || 0;
+
+  // 3. 참여 인원
+  const currentParticipants = session.currentParticipants || session.participants || 0;
+  const maxParticipants = session.maxParticipants || session.memberCount || 5;
+
+  // 4. 데이터 형식
+  const dataFormat = session.dataFormat || session.dataType || "X-ray";
+
+  // ==========================================
 
   return (
     <div className="min-h-screen py-12 px-4 bg-white">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-gray-800 mb-2">세션 참여하기</h1>
-          <p className="text-gray-600">라벨링 방법을 선택하여 세션에 참여합니다</p>
+          <h1 className="text-gray-800 mb-2 font-bold text-3xl">세션 참여하기</h1>
+          <p className="text-gray-600">선택하신 세션의 정보를 확인하고 라벨링 방식을 선택하세요.</p>
         </div>
 
-        {/* 세션 정보 카드 */}
-        <Card className="p-8 mb-12 border-2">
-          <div className="mb-6">
-            <h2 className="text-xl font-bold" style={{ color: '#6B3131' }}>
-              {session.title}
+        <Card className="p-8 mb-12 border-2 shadow-sm">
+          <div className="mb-6 border-b pb-4">
+            <h2 className="text-2xl font-bold" style={{ color: '#6B3131' }}>
+              {session.title || "제목 없음"}
             </h2>
           </div>
 
           <div className="space-y-8">
-            {/* 1열: 기본 정보 */}
+            {/* 기본 정보 그리드 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div>
-                <div className="flex items-center gap-2 mb-2 text-gray-600">
+                <div className="flex items-center gap-2 mb-2 text-gray-500">
                   <Database className="w-4 h-4" />
                   <span className="text-sm font-medium">데이터 형식</span>
                 </div>
-                <p className="text-lg font-semibold">{session.dataType}</p>
+                <p className="text-lg font-semibold">{dataFormat}</p>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-2 text-gray-600">
+                <div className="flex items-center gap-2 mb-2 text-gray-500">
                   <Tag className="w-4 h-4" />
                   <span className="text-sm font-medium">클래스 수</span>
                 </div>
-                <p className="text-lg font-semibold">{session.classNames.length}개</p>
+                {/* ✅ displayClasses.length 접근 전 안전장치 적용 */}
+                <p className="text-lg font-semibold">{classCount}개</p>
               </div>
 
               <div>
-                <div className="flex items-center gap-2 mb-2 text-gray-600">
+                <div className="flex items-center gap-2 mb-2 text-gray-500">
                   <Cpu className="w-4 h-4" />
                   <span className="text-sm font-medium">알고리즘</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-semibold">
-                    {session.algorithm || "FedAvg"}
-                  </p>
-                  <Badge variant="outline" className="text-xs text-gray-500">
-                    {session.algorithm === "FedAdam" ? "Advanced" : "Basic"}
-                  </Badge>
-                </div>
+                <p className="text-lg font-semibold">{session.algorithm || "FedAvg"}</p>
               </div>
             </div>
 
-            {/* 2열: 질환 목록 */}
+            {/* 질환 목록 */}
             <div>
-              <div className="flex items-center gap-2 mb-3 text-gray-600">
+              <div className="flex items-center gap-2 mb-3 text-gray-500">
                 <Tag className="w-4 h-4" />
                 <span className="text-sm font-medium">질환 목록</span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {session.classNames.map((name: string, index: number) => (
-                  <Badge 
-                    key={index}
-                    style={{ backgroundColor: '#FF9500' }}
-                    className="text-white hover:bg-orange-600"
-                  >
-                    {name}
-                  </Badge>
-                ))}
+                {displayClasses.length > 0 ? (
+                  displayClasses.map((name: string, index: number) => (
+                    <Badge key={index} style={{ backgroundColor: '#FF9500' }} className="text-white">
+                      {name}
+                    </Badge>
+                  ))
+                ) : (
+                  <span className="text-gray-400 text-sm italic">등록된 질환 정보가 없습니다.</span>
+                )}
               </div>
             </div>
 
-            {/* 3열: 참여 현황 */}
-            <div>
-              <div className="flex items-center gap-2 mb-2 text-gray-600">
-                <Users className="w-4 h-4" />
-                <span className="text-sm font-medium">참여 현황</span>
+            {/* 참여 현황 */}
+            <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between border">
+              <div className="flex items-center gap-2 text-gray-600">
+                <Users className="w-5 h-5" />
+                <span className="font-medium">참여 현황</span>
               </div>
-              <p className="text-lg font-semibold">
-                {session.participants || 0} / {session.targetParticipants || 5} 병원
-              </p>
+              <div className="flex items-center gap-4">
+                <span className="text-2xl font-bold text-[#6B3131]">
+                  {currentParticipants} / {maxParticipants}
+                </span>
+                <span className="text-sm text-gray-500">기관 참여 중</span>
+              </div>
             </div>
           </div>
         </Card>
 
         {/* 라벨링 방법 선택 */}
         <div className="space-y-6">
-          <h3 style={{ color: '#6B3131' }} className="text-lg font-semibold">
-            라벨링 방법 선택
-          </h3>
-          <p className="text-gray-600 -mt-4 mb-6">
-            데이터를 자동으로 라벨링할지, 수동으로 라벨링할지 선택하세요
-          </p>
-
+          <h3 style={{ color: '#6B3131' }} className="text-xl font-bold">라벨링 방법 선택</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* 자동 라벨링 옵션 */}
-            <Card 
-              className="p-6 cursor-pointer hover:border-orange-500 hover:shadow-md transition-all border-2 group"
-              onClick={handleAutoLabeling}
-            >
+            <Card className="p-6 cursor-pointer hover:border-[#FF9500] hover:shadow-md transition-all border-2 group" onClick={() => navigate(`/session/${sessionId}/labeling/auto`)}>
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100 transition-colors">
-                  <Wand2 className="w-6 h-6 text-orange-600" />
-                </div>
+                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100"><Wand2 className="w-6 h-6 text-orange-600" /></div>
                 <div>
                   <h4 className="font-bold text-gray-800 mb-2">자동 라벨링</h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    AI가 자동으로 이미지를 분석하여 라벨을 지정합니다. 
-                    라벨링 완료 후 검수 단계에서 결과를 확인하고 수정할 수 있습니다.
-                  </p>
-                  <ul className="text-xs text-gray-500 space-y-1">
-                    <li className="flex items-center">
-                      <Check className="w-3 h-3 mr-1 text-green-500" />
-                      빠른 라벨링 속도
-                    </li>
-                    <li className="flex items-center">
-                      <Check className="w-3 h-3 mr-1 text-green-500" />
-                      대량의 데이터 처리에 적합
-                    </li>
-                  </ul>
+                  <p className="text-sm text-gray-600 mb-4">AI 모델을 사용하여 수천 장의 의료 영상을 몇 분 안에 자동으로 라벨링합니다.</p>
                 </div>
               </div>
             </Card>
 
-            {/* 수동 라벨링 옵션 */}
-            <Card 
-              className="p-6 cursor-pointer hover:border-orange-500 hover:shadow-md transition-all border-2 group"
-              onClick={handleManualLabeling}
-            >
+            <Card className="p-6 cursor-pointer hover:border-[#FF9500] hover:shadow-md transition-all border-2 group" onClick={() => navigate(`/session/${sessionId}/labeling/manual`)}>
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100 transition-colors">
-                  <MousePointerClick className="w-6 h-6 text-orange-600" />
-                </div>
+                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100"><MousePointerClick className="w-6 h-6 text-orange-600" /></div>
                 <div>
                   <h4 className="font-bold text-gray-800 mb-2">수동 라벨링</h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    이미지를 하나씩 확인하며 직접 라벨을 지정합니다. 
-                    진행 중 언제든지 남은 데이터를 AI로 자동 라벨링할 수 있습니다.
-                  </p>
-                  <ul className="text-xs text-gray-500 space-y-1">
-                    <li className="flex items-center">
-                      <Check className="w-3 h-3 mr-1 text-green-500" />
-                      정확한 라벨링
-                    </li>
-                    <li className="flex items-center">
-                      <Check className="w-3 h-3 mr-1 text-green-500" />
-                      이미지 품질 확인 가능
-                    </li>
-                  </ul>
+                  <p className="text-sm text-gray-600 mb-4">이미지를 하나씩 직접 확인하며 정확하게 라벨링을 수행합니다. (검수용으로 추천)</p>
                 </div>
               </div>
             </Card>

@@ -26,19 +26,18 @@ export function SessionTrainingPage() {
   const navigate = useNavigate();
   const { hospital } = useAuth();
   
-  // ✅ setFinalMetrics 가져오기
+  // ✅ 4개 데이터 모두 가져오기
   const { xTrain, yTrain, xTest, yTest, setFinalMetrics } = useTrainingData();
   const { getSession } = useSession();
+  
+  const session = getSession(sessionId || "");
   
   const [status, setStatus] = useState<TrainingStatus>("preparing");
   const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [logMessage, setLogMessage] = useState("서버 연결 대기 중...");
   
-  // 시작 시간 기록
   const [startTime] = useState(new Date().toLocaleString());
-  
-  // 마지막 결과값 저장용 Ref
   const lastMetricsRef = useRef({ acc: 0, loss: 0 });
 
   useEffect(() => {
@@ -48,14 +47,29 @@ export function SessionTrainingPage() {
   if (!hospital) return null;
 
   const startTraining = async () => {
+    // 🔍 데이터 확인 로그
+    console.log("📦 Context 데이터 확인:", { 
+        xTrain: xTrain?.shape, 
+        yTrain: yTrain?.shape, 
+        xTest: xTest?.shape, 
+        yTest: yTest?.shape 
+    });
+
+    // ✅ [수정] Train과 Test가 모두 있어야만 시작! (엄격한 검사)
+    if (!xTrain || !yTrain || !xTest || !yTest) {
+        alert("학습 또는 테스트 데이터가 누락되었습니다.\n라벨링 페이지에서 데이터를 다시 로드해주세요.");
+        // 데이터가 없으면 다시 라벨링 페이지로
+        navigate(`/session/${sessionId}/labeling/auto`); 
+        return;
+    }
+
     setStatus("training");
-    setLogMessage("연합학습 서버(ws://localhost:8080)에 연결 시도 중...");
+    setLogMessage("연합학습 서버(ws://localhost:8000)에 연결 시도 중...");
 
     try {
       const client = new MyFlowerClient();
 
       client.setRoundCallback((epoch: number, loss: number, acc: number) => {
-        // ✅ 최신값 저장 (Ref에 저장해둬야 나중에 씀)
         lastMetricsRef.current = { acc, loss };
 
         setTrainingData((prev) => {
@@ -74,31 +88,37 @@ export function SessionTrainingPage() {
         });
       });
 
-      console.log("📦 Context 데이터 확인:", { x: xTrain, y: yTrain });
-
-      if (xTrain && yTrain) {
-        console.log("💉 진짜 데이터를 클라이언트에 주입합니다.");
-        client.addData(xTrain, yTrain, xTest, yTest);
-      } else {
-        console.warn("⚠️ 주의: 데이터가 없습니다!");
-        setLogMessage("⚠️ 데이터가 없어 가짜 데이터로 학습합니다.");
-      }
+      // ✅ [수정] 진짜 데이터 4개를 모두 주입
+      console.log("💉 Train/Test 데이터를 클라이언트에 주입합니다.");
+      client.addData(xTrain, yTrain, xTest, yTest);
 
       const flwr = new Flwr();
-      await flwr.connect("ws://localhost:8080", client);
+      
+      const userToken = hospital?.email ? hospital.email.split('@')[0] : "unknown_user";
+      const algo = session?.algorithm || "FedAvg";
 
-      // ✅ [핵심 추가] 학습 완료 후 결과 저장
+      // const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}`;
+      // const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}&hospitalId=${hospital.id}`;
+      // ✅ [수정] 테스트를 위해 주소창에 ?hId=2 라고 치면 2번 병원으로 접속하게 만듭니다.
+      const urlParams = new URLSearchParams(window.location.search);
+      const mockId = urlParams.get('hId') || hospital?.id || "1"; 
+
+      // 새로운 FastAPI 서버 주소 (hospitalId 파라미터 포함)
+      const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}&hospitalId=${mockId}`;
+
+      console.log(`🔗 웹소켓 연결 시도 (병원ID: ${mockId}): ${wsUrl}`);
+      await flwr.connect(wsUrl, client);
+
       const finalResult = {
         accuracy: lastMetricsRef.current.acc,
         loss: lastMetricsRef.current.loss,
-        rounds: 5, // 총 라운드 수
+        rounds: 5,
         startTime: startTime,
         endTime: new Date().toLocaleString()
       };
 
       if (setFinalMetrics) {
           setFinalMetrics(finalResult);
-          // 백업용 로컬스토리지 저장
           localStorage.setItem("session_result", JSON.stringify(finalResult));
           console.log("💾 결과 데이터 저장 완료:", finalResult);
       }
@@ -112,7 +132,7 @@ export function SessionTrainingPage() {
 
     } catch (err) {
       console.error(err);
-      setLogMessage("❌ 서버 연결 실패!");
+      setLogMessage("❌ 서버 연결 실패! (파이썬 서버가 8000번 포트로 켜져있나요?)");
       setTimeout(() => setStatus("preparing"), 3000);
     }
   };
@@ -139,8 +159,9 @@ export function SessionTrainingPage() {
               <h3 className="mb-4 text-xl font-bold" style={{ color: '#6B3131' }}>학습 준비 완료</h3>
               <div className="space-y-2 text-gray-700">
                 <p>• 데이터 전처리 및 오토라벨링이 완료되었습니다.</p>
-                <p>• 학습 데이터 상태: {xTrain ? <span className="text-green-600 font-bold">준비됨 (Real Data)</span> : <span className="text-red-500 font-bold">없음 (Fake Data 사용 예정)</span>}</p>
-                <p>• <strong>Python 서버(port 8080)</strong>가 켜져 있는지 확인해주세요.</p>
+                {/* 데이터 상태 표시 (Test 데이터 유무도 확인) */}
+                <p>• 학습 데이터 상태: {xTrain && xTest ? <span className="text-green-600 font-bold">준비됨 (Train/Test Split OK)</span> : <span className="text-red-500 font-bold">없음 (다시 로드 필요)</span>}</p>
+                <p>• <strong>Python 서버(port 8000)</strong>가 켜져 있는지 확인해주세요.</p>
                 <p>• 아래 버튼을 누르면 실제 연합학습이 시작됩니다.</p>
               </div>
             </Card>
@@ -157,6 +178,7 @@ export function SessionTrainingPage() {
           </div>
         )}
 
+        {/* ... 나머지 차트 및 완료 UI는 동일 ... */}
         {status === "training" && (
           <div className="space-y-8">
             <Card className="p-8 border-2 shadow-md">
@@ -178,6 +200,7 @@ export function SessionTrainingPage() {
                     <XAxis 
                       dataKey="round" 
                       label={{ value: 'Round', position: 'insideBottom', offset: -15 }} 
+                      domain={[1, 'auto']} 
                       allowDecimals={false} 
                     />
                     <YAxis domain={[0, 1]} label={{ value: 'Accuracy', angle: -90, position: 'insideLeft' }} />

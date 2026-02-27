@@ -231,49 +231,69 @@ export function LabelingAutoPage() {
     try {
         if (labeledData.length === 0) return;
         
-        console.log("🔄 데이터 변환 중 (학습용 224x224)...");
+        console.log("🔄 데이터 변환 및 분할 중 (Train 80% / Test 20%)...");
         
-        const xTensors = [];
-        const yLabels = [];
+        // 1. 데이터 무작위 섞기 (Shuffle)
+        const shuffledData = [...labeledData].sort(() => Math.random() - 0.5);
 
-        for (const data of labeledData) {
-            const imgElement = new Image();
-            imgElement.src = data.imageUrl;
-            await new Promise((resolve) => { imgElement.onload = resolve; });
+        // 2. 80:20 분할
+        const splitIdx = Math.floor(shuffledData.length * 0.8);
+        const trainData = shuffledData.slice(0, splitIdx);
+        const testData = shuffledData.slice(splitIdx);
 
-            const canvas = document.createElement('canvas');
-            canvas.width = 224; 
-            canvas.height = 224;
-            const ctx = canvas.getContext('2d');
-            if (ctx) ctx.drawImage(imgElement, 0, 0, 224, 224);
+        console.log(`📊 데이터 분할: 학습용 ${trainData.length}장 / 테스트용 ${testData.length}장`);
 
-            const tensor = tf.tidy(() => {
-                return tf.browser.fromPixels(canvas)
-                    .toFloat()
-                    .div(255.0); 
-            });
+        // 텐서 변환 헬퍼 함수
+        const convertToTensors = async (dataList: LabeledData[]) => {
+            const xList = [];
+            const yList =[];
 
-            xTensors.push(tensor);
+            for (const data of dataList) {
+                const imgElement = new Image();
+                imgElement.src = data.imageUrl;
+                await new Promise((resolve) => { imgElement.onload = resolve; });
 
-            const row = new Array(14).fill(0);
-            const labelIndex = CHEXPERT_LABELS.indexOf(data.label);
-            if (labelIndex !== -1) {
-                row[labelIndex] = 1;
+                const canvas = document.createElement('canvas');
+                canvas.width = 224; 
+                canvas.height = 224;
+                const ctx = canvas.getContext('2d');
+                if (ctx) ctx.drawImage(imgElement, 0, 0, 224, 224);
+
+                const tensor = tf.tidy(() => {
+                    return tf.browser.fromPixels(canvas).toFloat().div(255.0);
+                });
+                xList.push(tensor);
+
+                const row = new Array(14).fill(0);
+                const labelIndex = CHEXPERT_LABELS.indexOf(data.label);
+                if (labelIndex !== -1) row[labelIndex] = 1;
+                yList.push(row);
+
+                await new Promise(resolve => setTimeout(resolve, 5));
             }
-            yLabels.push(row);
+            
+            if (xList.length === 0) return null;
+            
+            return {
+                x: tf.stack(xList),
+                y: tf.tensor2d(yList,[yList.length, 14])
+            };
+        };
 
-            await new Promise(resolve => setTimeout(resolve, 10));
-        }
+        // 3. Train / Test 텐서 생성
+        const trainTensors = await convertToTensors(trainData);
+        const testTensors = await convertToTensors(testData);
 
-        if (xTensors.length > 0) {
-            const xTrain = tf.stack(xTensors);
-            const yTrain = tf.tensor2d(yLabels, [yLabels.length, 14]);
-
+        if (trainTensors && testTensors) {
             console.log(`✅ 변환 완료! 메모리: ${tf.memory().numBytes / 1024 / 1024} MB`);
-
-            setTrainingData(xTrain, yTrain);
+            
+            // 4. Context에 4개 모두 저장!
+            setTrainingData(trainTensors.x, trainTensors.y, testTensors.x, testTensors.y);
             navigate(`/session/${sessionId}/training`);
+        } else {
+            alert("데이터가 너무 적어서 Train/Test로 분할할 수 없습니다. (최소 2장 이상 필요)");
         }
+
     } catch (error) {
         console.error(error);
         alert("데이터 처리 중 오류가 발생했습니다.");

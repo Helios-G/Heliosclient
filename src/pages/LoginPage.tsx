@@ -22,7 +22,7 @@ export function LoginPage() {
     const isAdminUser = formData.email === "admin@helios.com";
     
     const mockHospitalData = {
-      id: isAdminUser ? "ADMIN" : "H001",
+      id: isAdminUser ? "ADMIN" : "1",
       name: isAdminUser ? "HELIOS 관리자" : "서울중앙병원",
       email: formData.email,
       businessNumber: "123-45-67890",

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
 interface Hospital {
-  id: string;
+  id: number; // 👈 string에서 number로 변경
   name: string;
   email: string;
   businessNumber: string;

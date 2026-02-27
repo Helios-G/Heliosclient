@@ -1,8 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Toaster } from "sonner"; // 버전 명시(@2.0.3)는 지워도 됩니다
+import { Toaster } from "sonner";
 import { AuthProvider } from "./contexts/AuthContext";
 import { Layout } from "./components/Layout";
-// ... 페이지 import 들 ...
 import { HomePage } from "./pages/HomePage";
 import { SignUpPage } from "./pages/SignUpPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -20,15 +19,16 @@ import { ModelDetailPage } from "./pages/ModelDetailPage";
 import { AdminPage } from "./pages/AdminPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 
-// ✅ Context 추가
+// ✅ [추가됨] 이 줄이 빠져서 에러가 났던 겁니다!
+import { ModelInferencePage } from "./pages/ModelInferencePage";
+
 import { TrainingDataProvider } from "./contexts/TrainingDataContext";
-import { SessionProvider } from "./contexts/SessionContext"; // 추가
+import { SessionProvider } from "./contexts/SessionContext";
 
 export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        {/* ✅ Layout 바깥으로 뺐습니다. (데이터가 UI보다 상위에 존재하도록) */}
         <SessionProvider>
           <TrainingDataProvider>
             <Layout>
@@ -45,7 +45,7 @@ export default function App() {
                 <Route path="/session/:sessionId" element={<SessionDetailPage />} />
                 <Route path="/session/:sessionId/join" element={<SessionJoinPage />} />
                 
-                {/* 라벨링 & 학습 (핵심 기능) */}
+                {/* 라벨링 & 학습 */}
                 <Route path="/session/:sessionId/labeling/auto" element={<LabelingAutoPage />} />
                 <Route path="/session/:sessionId/labeling/manual" element={<LabelingManualPage />} />
                 <Route path="/session/:sessionId/training" element={<SessionTrainingPage />} />
@@ -55,6 +55,9 @@ export default function App() {
                 <Route path="/download" element={<ModelDownloadPage />} />
                 <Route path="/model/:modelId" element={<ModelDetailPage />} />
                 <Route path="/admin" element={<AdminPage />} />
+
+                {/* ✅ AI 진단실 (Playground) */}
+                <Route path="/playground" element={<ModelInferencePage />} />
                 
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>
