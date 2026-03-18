@@ -23,8 +23,14 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [hospital, setHospital] = useState<Hospital | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
+    const saved = localStorage.getItem("hospital");
+    return saved !== null;
+  });
+  const [hospital, setHospital] = useState<Hospital | null>(() => {
+    const saved = localStorage.getItem("hospital");
+    return saved ? JSON.parse(saved) : null;
+  });
   const isAdmin = hospital?.isAdmin || false;
 
   const login = (hospitalData: Hospital) => {
