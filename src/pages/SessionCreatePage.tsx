@@ -54,6 +54,8 @@ export function SessionCreatePage() {
   
   // ✅ [추가됨] 알고리즘 선택 State
   const [algorithm, setAlgorithm] = useState("FedAvg");
+  const [maxParticipants, setMaxParticipants] = useState("5");
+
 
   const [classCount, setClassCount] = useState("");
   const [classNames, setClassNames] = useState<string[]>([]);
@@ -114,33 +116,59 @@ export function SessionCreatePage() {
       return;
     }
     if (classNames.length !== parseInt(classCount)) {
-      alert(`${classCount}개의 질환명을 모두 입력해주세요. (현재 ${classNames.length}개)`);
+      alert(`${classCount}개의 질환명을 모두 입력해주세요.`);
       return;
     }
 
-    // 세션 정보 저장
-    const newSessionId = Date.now().toString();
-
-    const newSession = {
-      id: newSessionId,
+    // 2. 백엔드 DTO 및 ERD 구조에 맞춘 데이터 포장
+    // ERD의 session 테이블 컬럼과 백엔드 SessionCreateRequest DTO를 매칭합니다.
+    const sessionRequest = {
       title: sessionTitle,
-      dataType,
-      algorithm, // ✅ 저장할 때 알고리즘 정보 포함
-      classNames,
-      createdAt: new Date().toISOString(),
-      createdBy: hospital.name
+      description: notes || "설명 없음",
+      memberCount: parseInt(maxParticipants), // 👈 입력받은 참여 인원 수
+      dataFormat: dataType,
+      classAmount: parseInt(classCount),
+      classList: classNames,
+      createdBy: hospital.id.toString()
     };
+  
+    try {
+      console.log("📤 세션 생성 요청:", sessionRequest);
+      const response = await fetch("/sessions/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sessionRequest)
+      });
 
-    addSession(newSession);
-    console.log("세션 생성 완료:", newSession);
+      if (!response.ok) throw new Error("서버 응답 오류");
+  
+      const result = await response.json(); 
+      console.log("📥 생성 성공:", result);
 
-    // 성공 알림 표시
-    setShowSuccessAlert(true);
+      const newSession = {
+        ...sessionRequest,
+        id: result.sessionId.toString(),
+        algorithm: algorithm,
+        createdAt: new Date().toISOString(),
+        createdBy: hospital.name,
+        status: "waiting",
+        participants: 1,
+        // ✅ UI 표시용 필드도 맞춤
+        targetParticipants: parseInt(maxParticipants) 
+      };
+  
+      addSession(newSession); 
+      setShowSuccessAlert(true);
+      setTimeout(() => navigate("/session/list"), 2000);
 
-    // 2초 후 세션 목록으로 이동
-    setTimeout(() => {
-      navigate("/session/list");
-    }, 2000);
+      setTimeout(() => {
+        navigate("/session/list");
+      }, 2000);
+  
+    } catch (error) {
+      console.error("❌ 세션 생성 실패:", error);
+      alert("세션을 생성하지 못했습니다. 관리자에게 문의하세요.");
+    }
   };
 
   return (
@@ -179,6 +207,20 @@ export function SessionCreatePage() {
               placeholder="예: 유방암 조기진단 AI 모델"
               className="border-2"
             />
+          </div>
+
+          <div>
+            <Label className="mb-2 block">참여 목표 기관 수 (학습 시작 조건) *</Label>
+            <Input
+              type="number"
+              min="2"
+              max="20"
+              value={maxParticipants}
+              onChange={(e) => setMaxParticipants(e.target.value)}
+              placeholder="예: 5"
+              className="border-2 border-orange-200 focus:border-orange-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">설정한 인원수가 모두 모집되면 연합학습이 자동으로 시작됩니다.</p>
           </div>
 
           {/* 데이터 형식 */}

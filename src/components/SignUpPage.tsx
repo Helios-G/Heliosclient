@@ -135,7 +135,7 @@ export function SignUpPage() {
               className="w-full py-6 text-white rounded-lg hover:opacity-90"
               style={{ backgroundColor: '#FF9500' }}
             >
-              가입신청
+              회원가입
             </Button>
           </form>
         </Card>

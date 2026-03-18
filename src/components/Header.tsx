@@ -1,7 +1,7 @@
 import { Button } from "./ui/button";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Building2, ChevronDown, Sun } from "lucide-react";
+import { Building2, ChevronDown, Activity } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,10 +17,8 @@ export function Header() {
   const { isLoggedIn, hospital, isAdmin, logout } = useAuth();
 
   const handleSectionClick = (sectionId: string) => {
-    // 홈페이지가 아니면 먼저 홈으로 이동
     if (location.pathname !== '/') {
       navigate('/');
-      // 페이지 로드 후 스크롤
       setTimeout(() => {
         const element = document.getElementById(sectionId);
         if (element) {
@@ -28,7 +26,6 @@ export function Header() {
         }
       }, 100);
     } else {
-      // 이미 홈페이지면 바로 스크롤
       const element = document.getElementById(sectionId);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth' });
@@ -42,7 +39,7 @@ export function Header() {
   };
 
   return (
-    <header className="border-b border-gray-200 bg-white">
+    <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
         {/* Logo */}
         <Link 
@@ -55,9 +52,7 @@ export function Header() {
             style={{ width: "140px", height: "auto" }}
             className="object-contain"
           />
-
         </Link>
-
 
         {/* Navigation */}
         <nav className="hidden md:flex items-center gap-8">
@@ -85,12 +80,23 @@ export function Header() {
           >
             모델 다운로드
           </Link>
+          
+          {/* ✅ [수정] 로그인한 경우에만 'AI 진단실' 메뉴 표시 */}
+          {isLoggedIn && (
+            <Link 
+              to="/playground" 
+              className="text-sm font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"
+            >
+              <Activity className="w-4 h-4" />
+              AI 진단실
+            </Link>
+          )}
         </nav>
 
         {/* Auth Buttons or Hospital Menu */}
         <div className="flex items-center gap-3">
           {isLoggedIn && hospital ? (
-            // 로그인된 상태 - 병원명 드롭다운
+            // 로그인된 상태
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
@@ -104,30 +110,18 @@ export function Header() {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem 
-                  onClick={() => navigate('/upload')}
-                  className="cursor-pointer"
-                >
-                  모델 업로드
-                </DropdownMenuItem>
-                <DropdownMenuItem 
-                  onClick={() => navigate('/download')}
-                  className="cursor-pointer"
-                >
-                  모델 다운로드
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
                   onClick={() => navigate('/mypage')}
                   className="cursor-pointer"
                 >
                   회원 정보
                 </DropdownMenuItem>
-                <DropdownMenuItem 
+                {/* 대시보드 메뉴는 필요 시 활성화 */}
+                {/* <DropdownMenuItem 
                   onClick={() => navigate('/dashboard')}
                   className="cursor-pointer"
                 >
                   대시보드
-                </DropdownMenuItem>
+                </DropdownMenuItem> */}
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
@@ -150,7 +144,7 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            // 로그인 안된 상태 - 로그인/회원가입 버튼
+            // 로그인 안된 상태
             <>
               <Button 
                 onClick={() => navigate('/login')}
