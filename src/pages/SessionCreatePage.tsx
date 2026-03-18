@@ -17,6 +17,15 @@ import {
 import { X, Plus, Sparkles, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "../components/ui/alert";
 
+// DR(당뇨망막병증) 프리셋
+const DR_CLASSES = [
+  { index: 0, en: "No DR",         kr: "당뇨망막병증 없음 (정상)" },
+  { index: 1, en: "Mild",          kr: "경증" },
+  { index: 2, en: "Moderate",      kr: "중등도" },
+  { index: 3, en: "Severe",        kr: "중증" },
+  { index: 4, en: "Proliferative", kr: "증식성 당뇨망막병증" },
+];
+
 // CheXpert 프리셋 데이터
 const CHEXPERT_CLASSES = [
   { index: 0, en: "No Finding", kr: "특이사항 없음 (정상)", desc: "병변이 발견되지 않음" },
@@ -78,18 +87,34 @@ export function SessionCreatePage() {
 
   // CheXpert 프리셋 적용
   const handleApplyCheXpert = () => {
-    const classNamesOnly = CHEXPERT_CLASSES.map(cls => cls.en); 
+    const classNamesOnly = CHEXPERT_CLASSES.map(cls => cls.en);
     setClassCount("14");
     setClassNames(classNamesOnly);
     setDataType("X-ray");
     alert("CheXpert 14개 클래스가 자동으로 설정되었습니다!");
   };
 
-  const handleSubmit = async () => {
-    // 1. 유효성 검사 (Validation)
-    if (!sessionTitle.trim()) { alert("세션 제목을 입력해주세요."); return; }
-    if (!dataType) { alert("데이터 형식을 선택해주세요."); return; }
-    if (!classCount) { alert("질환 개수를 입력해주세요."); return; }
+  // DR 프리셋 적용
+  const handleApplyDR = () => {
+    setClassCount("5");
+    setClassNames(DR_CLASSES.map(c => c.en));
+    setDataType("Fundus");
+    alert("DR(당뇨망막병증) 5단계 클래스가 자동으로 설정되었습니다!");
+  };
+
+  const handleSubmit = () => {
+    if (!sessionTitle.trim()) {
+      alert("세션 제목을 입력해주세요.");
+      return;
+    }
+    if (!dataType) {
+      alert("데이터 형식을 선택해주세요.");
+      return;
+    }
+    if (!classCount) {
+      alert("질환 개수를 입력해주세요.");
+      return;
+    }
     if (classNames.length !== parseInt(classCount)) {
       alert(`${classCount}개의 질환명을 모두 입력해주세요.`);
       return;
@@ -323,27 +348,54 @@ export function SessionCreatePage() {
                 </div>
               )}
 
-              {/* ChexPert 예시 */}
-              <Card className="mt-4 p-4 bg-blue-50 border-blue-200">
-                <p className="text-sm text-blue-800 mb-2">
-                  <strong>예시 (ChexPert 데이터셋):</strong>
-                </p>
-                <div className="flex flex-wrap gap-2 text-xs text-blue-700">
-                  {CHEXPERT_CLASSES.map((cls) => (
-                    <span key={cls.index} className="px-2 py-1 bg-blue-100 rounded">
-                      {cls.en}
-                    </span>
-                  ))}
-                </div>
-                <Button
-                  onClick={handleApplyCheXpert}
-                  style={{ backgroundColor: '#FF9500' }}
-                  className="text-white mt-4"
-                >
-                  <Sparkles className="w-4 h-4 mr-1" />
-                  CheXpert 클래스 적용
-                </Button>
-              </Card>
+              {/* 프리셋 카드 2개 나란히 */}
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                {/* CheXpert 프리셋 */}
+                <Card className="p-4 bg-blue-50 border-blue-200">
+                  <p className="text-sm text-blue-800 mb-2">
+                    <strong>🫁 CheXpert (흉부 X-ray)</strong>
+                  </p>
+                  <div className="flex flex-wrap gap-1 text-xs text-blue-700 mb-3">
+                    {CHEXPERT_CLASSES.map((cls) => (
+                      <span key={cls.index} className="px-2 py-0.5 bg-blue-100 rounded">
+                        {cls.en}
+                      </span>
+                    ))}
+                  </div>
+                  <Button
+                    onClick={handleApplyCheXpert}
+                    style={{ backgroundColor: '#FF9500' }}
+                    className="text-white w-full"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    CheXpert 14클래스 적용
+                  </Button>
+                </Card>
+
+                {/* DR 프리셋 */}
+                <Card className="p-4 bg-emerald-50 border-emerald-200">
+                  <p className="text-sm text-emerald-800 mb-2">
+                    <strong>👁️ DR (당뇨망막병증)</strong>
+                  </p>
+                  <div className="flex flex-wrap gap-1 text-xs text-emerald-700 mb-3">
+                    {DR_CLASSES.map((cls) => (
+                      <span key={cls.index} className="px-2 py-0.5 bg-emerald-100 rounded">
+                        Lv{cls.index}: {cls.en}
+                      </span>
+                    ))}
+                  </div>
+                  <Button
+                    onClick={handleApplyDR}
+                    style={{ backgroundColor: '#059669' }}
+                    className="text-white w-full"
+                  >
+                    <Sparkles className="w-4 h-4 mr-1" />
+                    DR 5단계 클래스 적용
+                  </Button>
+                </Card>
+
+              </div>
             </div>
           )}
 
