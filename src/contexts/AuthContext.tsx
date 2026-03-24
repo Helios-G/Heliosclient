@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 
-interface Hospital {
-  id: number; // 👈 string에서 number로 변경
+interface User {
+  id: number;
   name: string;
   email: string;
   businessNumber: string;
@@ -13,46 +13,45 @@ interface Hospital {
 
 interface AuthContextType {
   isLoggedIn: boolean;
-  hospital: Hospital | null;
+  user: User | null;
   isAdmin: boolean;
-  login: (hospitalData: Hospital) => void;
+  login: (userData: User) => void;
   logout: () => void;
-  updateHospital: (hospitalData: Hospital) => void;
+  updateUser: (userData: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    const saved = localStorage.getItem("hospital");
+    const saved = localStorage.getItem("user");
     return saved !== null;
   });
-  const [hospital, setHospital] = useState<Hospital | null>(() => {
-    const saved = localStorage.getItem("hospital");
+  const [user, setUser] = useState<User | null>(() => {
+    const saved = localStorage.getItem("user");
     return saved ? JSON.parse(saved) : null;
   });
-  const isAdmin = hospital?.isAdmin || false;
+  const isAdmin = user?.isAdmin || false;
 
-  const login = (hospitalData: Hospital) => {
+  const login = (userData: User) => {
     setIsLoggedIn(true);
-    setHospital(hospitalData);
-    // 실제로는 localStorage나 sessionStorage에 저장
-    localStorage.setItem("hospital", JSON.stringify(hospitalData));
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   const logout = () => {
     setIsLoggedIn(false);
-    setHospital(null);
-    localStorage.removeItem("hospital");
+    setUser(null);
+    localStorage.removeItem("user");
   };
 
-  const updateHospital = (hospitalData: Hospital) => {
-    setHospital(hospitalData);
-    localStorage.setItem("hospital", JSON.stringify(hospitalData));
+  const updateUser = (userData: User) => {
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, hospital, isAdmin, login, logout, updateHospital }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, isAdmin, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

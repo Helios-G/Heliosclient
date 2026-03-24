@@ -17,16 +17,16 @@ import {
 export function SessionResultsPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
 
   // 로그인 체크
   useEffect(() => {
-    if (!hospital) {
+    if (!user) {
       navigate("/login");
     }
-  }, [hospital, navigate]);
+  }, [user, navigate]);
 
-  if (!hospital) {
+  if (!user) {
     return null;
   }
 
@@ -36,7 +36,7 @@ export function SessionResultsPage() {
     modelArchitecture: "CheXpert-Light (Custom CNN)", // 모델명 변경
     finalAccuracy: 0.9643, // 로그 기반 정확도
     finalLoss: 0.0926,     // 로그 기반 Loss
-    participatingHospitals: 2, // 참여 병원 수
+    participatingUsers: 2, // 참여 병원 수
     totalRounds: 20,        // 스크린샷에 맞춰 20라운드로 설정
     startTime: new Date(Date.now() - 14 * 60000 - 23000).toLocaleString(), // 약 14분 전
     endTime: new Date().toLocaleString(), // 현재 시간
@@ -98,7 +98,7 @@ export function SessionResultsPage() {
                   <Building2 className="w-5 h-5" style={{ color: '#FF9500' }} />
                   <h4 style={{ color: '#6B3131' }}>참여 기관 수</h4>
                 </div>
-                <p className="text-2xl">{results.participatingHospitals}개 병원</p>
+                <p className="text-2xl">{results.participatingUsers}</p>
               </div>
 
               {/* 라운드 수 */}

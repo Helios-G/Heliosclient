@@ -24,7 +24,7 @@ interface TrainingData {
 export function SessionTrainingPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   
   // ✅ 4개 데이터 모두 가져오기
   const { xTrain, yTrain, xTest, yTest, setFinalMetrics } = useTrainingData();
@@ -41,10 +41,10 @@ export function SessionTrainingPage() {
   const lastMetricsRef = useRef({ acc: 0, loss: 0 });
 
   useEffect(() => {
-    if (!hospital) navigate("/login");
-  }, [hospital, navigate]);
+    if (!user) navigate("/login");
+  }, [user, navigate]);
 
-  if (!hospital) return null;
+  if (!user) return null;
 
   const startTraining = async () => {
     // 🔍 데이터 확인 로그
@@ -64,7 +64,7 @@ export function SessionTrainingPage() {
     }
 
     setStatus("training");
-    setLogMessage("연합학습 서버(ws://localhost:8000)에 연결 시도 중...");
+    setLogMessage("연합학습 서버(ws://localhost:8083)에 연결 시도 중...");
 
     try {
       const client = new MyFlowerClient();
@@ -88,25 +88,20 @@ export function SessionTrainingPage() {
         });
       });
 
-      // ✅ [수정] 진짜 데이터 4개를 모두 주입
       console.log("💉 Train/Test 데이터를 클라이언트에 주입합니다.");
       client.addData(xTrain, yTrain, xTest, yTest);
 
       const flwr = new Flwr();
       
-      const userToken = hospital?.email ? hospital.email.split('@')[0] : "unknown_user";
+      const userToken = user?.id?.toString() || "1"; 
       const algo = session?.algorithm || "FedAvg";
 
-      // const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}`;
-      // const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}&hospitalId=${hospital.id}`;
-      // ✅ [수정] 테스트를 위해 주소창에 ?hId=2 라고 치면 2번 병원으로 접속하게 만듭니다.
       const urlParams = new URLSearchParams(window.location.search);
-      const mockId = urlParams.get('hId') || hospital?.id || "1"; 
+      const mockId = urlParams.get('hId') || user?.id || "1"; 
 
-      // 새로운 FastAPI 서버 주소 (hospitalId 파라미터 포함)
-      const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}&hospitalId=${mockId}`;
+      const wsUrl = `ws://localhost:8083/ws/fl/${sessionId}/${userToken}?algo=${algo}&userId=${mockId}`;
 
-      console.log(`🔗 웹소켓 연결 시도 (병원ID: ${mockId}): ${wsUrl}`);
+      console.log(`🔗 웹소켓 연결 시도 (사용자ID: ${mockId}): ${wsUrl}`);
       await flwr.connect(wsUrl, client);
 
       const finalResult = {

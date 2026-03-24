@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { authFetch } from "../lib/authFetch";
 import { Button } from "../components/ui/button";
 import { Plus } from "lucide-react";
 
 export function SessionListPage() {
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   
   const [mySessions, setMySessions] = useState<any[]>([]); 
   const [allSessions, setAllSessions] = useState<any[]>([]);
@@ -14,7 +15,7 @@ export function SessionListPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!hospital) {
+    if (!user) {
       navigate("/login");
       return;
     }
@@ -23,8 +24,8 @@ export function SessionListPage() {
       try {
         setIsLoading(true);
         const [myRes, allRes] = await Promise.all([
-          fetch(`/sessions/my?hospitalId=${hospital.id}`),
-          fetch(`/sessions`)
+          authFetch(`/sessions/my?userId=${user.id}`),
+          authFetch(`/sessions`)
         ]);
 
         const myData = await myRes.json();
@@ -40,17 +41,17 @@ export function SessionListPage() {
     };
 
     fetchData();
-  }, [hospital, navigate]);
+  }, [user, navigate]);
 
-  if (!hospital) return null;
+  if (!user) return null;
 
   // 필터링 로직
   const filteredSessions = allSessions.filter(session => {
     if (filter === "all") return true;
     const status = session.status;
-    if (filter === "recruiting") return status === 0;
-    if (filter === "processing") return status === 2;
-    if (filter === "completed") return status === 3;
+    if (filter === "recruiting") return status === "WAITING";
+    if (filter === "processing") return status === "IN_PROGRESS";
+    if (filter === "completed") return status === "COMPLETED";
     return true;
   });
 
@@ -58,7 +59,9 @@ export function SessionListPage() {
     <tr key={session.sessionId} className="hover:bg-gray-50 transition-colors">
       <td className="px-6 py-4 border-b border-gray-100">
         <span className="text-gray-600 font-medium">
-          {session.status === 2 ? "학습 중" : session.status === 3 ? "완료" : "대기 중"}
+          {session.status === "IN_PROGRESS" ? "학습 중" 
+            : session.status === "COMPLETED" ? "완료" 
+            : "대기 중"}
         </span>
       </td>
       <td className="px-6 py-4 border-b border-gray-100 font-medium text-[#FF9500]">
@@ -70,12 +73,12 @@ export function SessionListPage() {
       <td className="px-6 py-4 border-b border-gray-100 text-center">
         <Button 
           size="sm" 
-          style={{ backgroundColor: session.status === 3 ? '#9CA3AF' : '#5D4037' }}
+          style={{ backgroundColor: session.status === "COMPLETED" ? '#9CA3AF' : '#5D4037' }}
           className="text-white hover:opacity-90 w-20 rounded-md"
           onClick={() => navigate(`/session/${session.sessionId}/join`)}
-          disabled={session.status === 3}
+          disabled={session.status === "COMPLETED"}
         >
-          {session.status === 3 ? "완료됨" : type === 'my' ? "현황" : "참여"}
+          {session.status === "COMPLETED" ? "완료됨" : type === 'my' ? "현황" : "참여"}
         </Button>
       </td>
     </tr>
@@ -112,7 +115,6 @@ export function SessionListPage() {
             <div className="w-1 h-5 bg-[#5D4037] rounded-full"></div> 참여 중인 세션
           </h3>
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            {/* ✅ 인라인 스타일로 maxHeight 강제 지정, overflow-y-scroll 로 항상 스크롤바 영역 확보 */}
             <div style={{ maxHeight: '220px', overflowY: 'auto' }} className="w-full custom-scrollbar">
               <table className="w-full text-left text-sm table-fixed relative">
                 <thead className="text-white sticky top-0 z-10 shadow-sm" style={{ backgroundColor: '#5D4037' }}>
@@ -157,7 +159,6 @@ export function SessionListPage() {
 
         {/* 5. 전체 세션 목록 */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-10">
-          {/* ✅ 인라인 스타일로 maxHeight 450px 강제 지정 */}
           <div style={{ maxHeight: '450px', overflowY: 'auto' }} className="w-full custom-scrollbar">
             <table className="w-full text-left text-sm table-fixed relative">
               <thead className="text-white sticky top-0 z-10 shadow-sm" style={{ backgroundColor: '#5D4037' }}>

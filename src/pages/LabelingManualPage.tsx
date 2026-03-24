@@ -41,7 +41,7 @@ const CHEXPERT_LABELS = [
 export function LabelingManualPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   const { setTrainingData } = useTrainingData();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,8 +59,8 @@ export function LabelingManualPage() {
 
   // 로그인 체크
   useEffect(() => {
-    if (!hospital) navigate("/login");
-  }, [hospital, navigate]);
+    if (!user) navigate("/login");
+  }, [user, navigate]);
 
   // ✅ 1. 모델 로드 (AutoPage와 동일)
   useEffect(() => {
@@ -80,7 +80,7 @@ export function LabelingManualPage() {
     loadModel();
   }, []);
 
-  if (!hospital) return null;
+  if (!user) return null;
 
   // 파일 선택
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {

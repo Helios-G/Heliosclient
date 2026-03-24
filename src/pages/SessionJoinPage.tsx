@@ -5,6 +5,8 @@ import { useSession } from "../contexts/SessionContext";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { authFetch } from "../lib/authFetch";
+
 import { 
   Database, 
   Users, 
@@ -12,36 +14,33 @@ import {
   Wand2, 
   MousePointerClick,
   Cpu,
-  Check,
   Loader2 
 } from "lucide-react";
 
 export function SessionJoinPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   const { getSession } = useSession();
 
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!hospital) {
-      navigate("/login");
-      return;
-    }
+    // ✅ [나중에 인증 붙이면 주석 해제]
+    // if (!user) {
+    //   navigate("/login");
+    //   return;
+    // }
 
     const fetchSessionDetail = async () => {
       setIsLoading(true);
       try {
-        // 1. 먼저 로컬 Context(방금 만든 데이터)에서 확인
         const localSession = getSession(sessionId || "");
         
-        // 2. 백엔드에서 최신 목록 가져오기
-        const response = await fetch(`/sessions`);
+        const response = await authFetch(`/sessions`);
         const allSessions = await response.json();
         
-        // sessionId 타입(숫자 vs 문자열) 차이 방지를 위해 == 사용
         const serverSession = allSessions.find((s: any) => s.sessionId == sessionId);
 
         if (serverSession) {
@@ -62,7 +61,10 @@ export function SessionJoinPage() {
     };
 
     fetchSessionDetail();
-  }, [sessionId, hospital, navigate, getSession]);
+  }, [sessionId, getSession]);
+
+  // ✅ [나중에 인증 붙이면 주석 해제]
+  // if (!user) return null;
 
   if (isLoading) {
     return (
@@ -78,8 +80,7 @@ export function SessionJoinPage() {
   // ==========================================
   // 🔍 [에러 방지 핵심 로직] 데이터 정규화
   // ==========================================
-  
-  // 1. 질환 목록 추출 (어떤 이름으로 들어오든 배열로 변환)
+
   let displayClasses: string[] = [];
   if (Array.isArray(session.classList)) {
     displayClasses = session.classList;
@@ -89,15 +90,32 @@ export function SessionJoinPage() {
     displayClasses = session.labelClassList.split(',').map((s: string) => s.trim());
   }
 
-  // 2. 클래스 개수 (데이터가 없으면 0으로 표시)
   const classCount = session.labelClassCount || session.classAmount || displayClasses.length || 0;
-
-  // 3. 참여 인원
   const currentParticipants = session.currentParticipants || session.participants || 0;
   const maxParticipants = session.maxParticipants || session.memberCount || 5;
-
-  // 4. 데이터 형식
   const dataFormat = session.dataFormat || session.dataType || "X-ray";
+
+  // URL 파라미터에서 userId 추출 (테스트용), 없으면 user.id, 그것도 없으면 1
+  const urlParams = new URLSearchParams(window.location.search);
+  const userId = urlParams.get('userId') || user?.id || 1;
+
+  // 세션 참여 신청 후 라벨링 페이지로 이동
+  const handleJoin = async (type: 'auto' | 'manual') => {
+    try {
+      const res = await authFetch(`/sessions/${sessionId}/join?userId=${userId}`, {
+        method: "POST"
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "참여 신청 실패");
+        return;
+      }
+      navigate(`/session/${sessionId}/labeling/${type}?userId=${userId}`);
+    } catch (e) {
+      console.error("참여 신청 실패:", e);
+      alert("참여 신청 중 오류가 발생했습니다.");
+    }
+  };
 
   // ==========================================
 
@@ -117,7 +135,6 @@ export function SessionJoinPage() {
           </div>
 
           <div className="space-y-8">
-            {/* 기본 정보 그리드 */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <div>
                 <div className="flex items-center gap-2 mb-2 text-gray-500">
@@ -132,7 +149,6 @@ export function SessionJoinPage() {
                   <Tag className="w-4 h-4" />
                   <span className="text-sm font-medium">클래스 수</span>
                 </div>
-                {/* ✅ displayClasses.length 접근 전 안전장치 적용 */}
                 <p className="text-lg font-semibold">{classCount}개</p>
               </div>
 
@@ -145,7 +161,6 @@ export function SessionJoinPage() {
               </div>
             </div>
 
-            {/* 질환 목록 */}
             <div>
               <div className="flex items-center gap-2 mb-3 text-gray-500">
                 <Tag className="w-4 h-4" />
@@ -164,7 +179,6 @@ export function SessionJoinPage() {
               </div>
             </div>
 
-            {/* 참여 현황 */}
             <div className="bg-gray-50 p-4 rounded-lg flex items-center justify-between border">
               <div className="flex items-center gap-2 text-gray-600">
                 <Users className="w-5 h-5" />
@@ -180,13 +194,17 @@ export function SessionJoinPage() {
           </div>
         </Card>
 
-        {/* 라벨링 방법 선택 */}
         <div className="space-y-6">
           <h3 style={{ color: '#6B3131' }} className="text-xl font-bold">라벨링 방법 선택</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="p-6 cursor-pointer hover:border-[#FF9500] hover:shadow-md transition-all border-2 group" onClick={() => navigate(`/session/${sessionId}/labeling/auto`)}>
+            <Card 
+              className="p-6 cursor-pointer hover:border-[#FF9500] hover:shadow-md transition-all border-2 group" 
+              onClick={() => handleJoin('auto')}
+            >
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100"><Wand2 className="w-6 h-6 text-orange-600" /></div>
+                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100">
+                  <Wand2 className="w-6 h-6 text-orange-600" />
+                </div>
                 <div>
                   <h4 className="font-bold text-gray-800 mb-2">자동 라벨링</h4>
                   <p className="text-sm text-gray-600 mb-4">AI 모델을 사용하여 수천 장의 의료 영상을 몇 분 안에 자동으로 라벨링합니다.</p>
@@ -194,9 +212,14 @@ export function SessionJoinPage() {
               </div>
             </Card>
 
-            <Card className="p-6 cursor-pointer hover:border-[#FF9500] hover:shadow-md transition-all border-2 group" onClick={() => navigate(`/session/${sessionId}/labeling/manual`)}>
+            <Card 
+              className="p-6 cursor-pointer hover:border-[#FF9500] hover:shadow-md transition-all border-2 group" 
+              onClick={() => handleJoin('manual')}
+            >
               <div className="flex items-start gap-4">
-                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100"><MousePointerClick className="w-6 h-6 text-orange-600" /></div>
+                <div className="p-3 rounded-full bg-orange-50 group-hover:bg-orange-100">
+                  <MousePointerClick className="w-6 h-6 text-orange-600" />
+                </div>
                 <div>
                   <h4 className="font-bold text-gray-800 mb-2">수동 라벨링</h4>
                   <p className="text-sm text-gray-600 mb-4">이미지를 하나씩 직접 확인하며 정확하게 라벨링을 수행합니다. (검수용으로 추천)</p>

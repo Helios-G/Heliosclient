@@ -21,8 +21,8 @@ export function LoginPage() {
     // admin@helios.com으로 로그인하면 관리자 권한 부여
     const isAdminUser = formData.email === "admin@helios.com";
     
-    const mockHospitalData = {
-      id: isAdminUser ? "ADMIN" : "1",
+    const mockUserData = {
+      id: isAdminUser ? 0 : 1,
       name: isAdminUser ? "HELIOS 관리자" : "서울중앙병원",
       email: formData.email,
       businessNumber: "123-45-67890",
@@ -32,7 +32,7 @@ export function LoginPage() {
       isAdmin: isAdminUser
     };
 
-    login(mockHospitalData);
+    login(mockUserData);
     navigate("/");
   };
 

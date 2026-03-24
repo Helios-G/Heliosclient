@@ -52,7 +52,7 @@ interface LabeledData {
 export function LabelingAutoPage() {
   const { sessionId } = useParams();
   const navigate      = useNavigate();
-  const { hospital }  = useAuth();
+  const { user }  = useAuth();
   const { setTrainingData } = useTrainingData();
   const { getSession }      = useSession();
 
@@ -69,8 +69,8 @@ export function LabelingAutoPage() {
   const [modelType, setModelType] = useState<ModelType>("chexpert");
 
   useEffect(() => {
-    if (!hospital) navigate("/login");
-  }, [hospital, navigate]);
+    if (!user) navigate("/login");
+  }, [user, navigate]);
 
   // ─── 모델 로딩: 세션 dataType === "Fundus" → DR, 나머지 → CheXpert ─────────
   useEffect(() => {
@@ -101,7 +101,7 @@ export function LabelingAutoPage() {
     loadModel();
   }, [sessionId, getSession]);
 
-  if (!hospital) return null;
+  if (!user) return null;
 
   const labels = modelType === "dr" ? DR_LABELS : CHEXPERT_LABELS;
 
