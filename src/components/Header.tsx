@@ -159,7 +159,7 @@ export function Header() {
                 style={{ borderColor: '#FF9500', color: '#FF9500' }}
                 className="border-2 hover:bg-orange-50"
               >
-                가입신청
+                회원가입
               </Button>
             </>
           )}

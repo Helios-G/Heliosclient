@@ -45,7 +45,6 @@ interface LabeledData {
   label: string;
   confidence: number;
   fullProbabilities: number[];
-  tensor?: tf.Tensor;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -157,7 +156,7 @@ export function LabelingAutoPage() {
 
       } else {
         // ── CheXpert: NCHW [1,3,320,320] → sigmoid → disease-priority ────────
-        const { processedTensor, probabilities } = tf.tidy(() => {
+        const probabilities = tf.tidy(() => {
           let img = tf.browser.fromPixels(imgEl) as tf.Tensor3D;
           img = tf.image.resizeBilinear(img, [320, 320]) as tf.Tensor3D;
           img = img.div(255.0) as tf.Tensor3D;
@@ -166,7 +165,7 @@ export function LabelingAutoPage() {
           const batch  = img.expandDims(0);
           const output = (model as tf.GraphModel).predict(batch) as tf.Tensor;
           const probs  = output.sigmoid();
-          return { processedTensor: batch.clone(), probabilities: probs.dataSync() };
+          return probs.dataSync();
         });
 
         const probsArray = Array.from(probabilities);
@@ -188,7 +187,6 @@ export function LabelingAutoPage() {
           label:             finalLabel,
           confidence:        finalScore,
           fullProbabilities: probsArray,
-          tensor:            processedTensor,
         });
       }
 
@@ -237,36 +235,57 @@ export function LabelingAutoPage() {
     setIsProcessing(true);
     try {
       if (labeledData.length === 0) return;
-      const numClasses  = modelType === "dr" ? 5 : 14;
-      const xTensors: tf.Tensor[] = [];
-      const yLabels:  number[][]  = [];
+      const numClasses = modelType === "dr" ? 5 : 14;
+      const shuffledData = [...labeledData].sort(() => Math.random() - 0.5);
+      let splitIdx = Math.floor(shuffledData.length * 0.8);
+      splitIdx = Math.min(Math.max(splitIdx, 1), shuffledData.length - 1);
 
-      for (const data of labeledData) {
-        const imgEl = new Image();
-        imgEl.src   = data.imageUrl;
-        await new Promise(resolve => { imgEl.onload = resolve; });
+      const trainData = shuffledData.slice(0, splitIdx);
+      const testData = shuffledData.slice(splitIdx);
 
-        const canvas = document.createElement("canvas");
-        canvas.width = canvas.height = 224;
-        const ctx = canvas.getContext("2d");
-        if (ctx) ctx.drawImage(imgEl, 0, 0, 224, 224);
+      const convertToTensors = async (dataList: LabeledData[]) => {
+        const xList: tf.Tensor[] = [];
+        const yList: number[][] = [];
 
-        xTensors.push(tf.tidy(() =>
-          tf.browser.fromPixels(canvas).toFloat().div(255.0)
-        ));
+        for (const data of dataList) {
+          const imgEl = new Image();
+          imgEl.src = data.imageUrl;
+          await new Promise(resolve => { imgEl.onload = resolve; });
 
-        const row = new Array(numClasses).fill(0);
-        const idx = labels.indexOf(data.label);
-        if (idx !== -1) row[idx] = 1;
-        yLabels.push(row);
+          const canvas = document.createElement("canvas");
+          canvas.width = canvas.height = 224;
+          const ctx = canvas.getContext("2d");
+          if (ctx) ctx.drawImage(imgEl, 0, 0, 224, 224);
 
-        await new Promise(r => setTimeout(r, 10));
-      }
+          xList.push(tf.tidy(() =>
+            tf.browser.fromPixels(canvas).toFloat().div(255.0)
+          ));
 
-      if (xTensors.length > 0) {
+          const row = new Array(numClasses).fill(0.0);
+          const idx = labels.indexOf(data.label);
+          if (idx !== -1) row[idx] = 1.0;
+          yList.push(row);
+
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+
+        if (xList.length === 0) return null;
+
+        return {
+          x: tf.stack(xList),
+          y: tf.tensor2d(yList, [yList.length, numClasses], "float32")
+        };
+      };
+
+      const trainTensors = await convertToTensors(trainData);
+      const testTensors = await convertToTensors(testData);
+
+      if (trainTensors && testTensors) {
         setTrainingData(
-          tf.stack(xTensors),
-          tf.tensor2d(yLabels, [yLabels.length, numClasses])
+          trainTensors.x,
+          trainTensors.y,
+          testTensors.x,
+          testTensors.y
         );
         navigate(`/session/${sessionId}/training`);
       }
