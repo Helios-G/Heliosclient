@@ -21,10 +21,40 @@ export function SessionJoinPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { getSession } = useSession();
+  const { getSession, upsertSession } = useSession();
 
   const [session, setSession] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const normalizeSession = (raw: any) => {
+    let classNames: string[] = [];
+    if (Array.isArray(raw.classList)) {
+      classNames = raw.classList;
+    } else if (Array.isArray(raw.classNames)) {
+      classNames = raw.classNames;
+    } else if (typeof raw.labelClassList === "string" && raw.labelClassList.length > 0) {
+      classNames = raw.labelClassList.split(",").map((item: string) => item.trim());
+    }
+
+    return {
+      id: String(raw.sessionId ?? raw.id ?? sessionId ?? ""),
+      title: raw.title ?? "제목 없음",
+      dataType: raw.dataFormat ?? raw.dataType ?? "X-ray",
+      classNames,
+      algorithm: raw.algorithm ?? "FedAvg",
+      rounds: raw.rounds ?? 5,
+      createdAt: raw.createdAt ?? new Date().toISOString(),
+      createdBy: raw.createdBy ?? "unknown",
+      status:
+        raw.status === "IN_PROGRESS"
+          ? "running"
+          : raw.status === "COMPLETED"
+            ? "completed"
+            : "waiting",
+      participants: raw.currentParticipants ?? raw.participants ?? 0,
+      targetParticipants: raw.maxParticipants ?? raw.memberCount ?? 0,
+    } as const;
+  };
 
   useEffect(() => {
     // ✅ [나중에 인증 붙이면 주석 해제]
@@ -38,14 +68,16 @@ export function SessionJoinPage() {
       try {
         const localSession = getSession(sessionId || "");
         
-        const response = await authFetch(`/sessions`);
-        const allSessions = await response.json();
-        
-        const serverSession = allSessions.find((s: any) => s.sessionId == sessionId);
-
-        if (serverSession) {
+        const response = await authFetch(`/sessions/${sessionId}`);
+        if (response.ok) {
+          const serverSession = await response.json();
           console.log("🔍 백엔드에서 로드된 데이터:", serverSession);
           setSession(serverSession);
+          const normalized = normalizeSession(serverSession);
+          const currentLocal = getSession(normalized.id);
+          if (JSON.stringify(currentLocal) !== JSON.stringify(normalized)) {
+            upsertSession(normalized);
+          }
         } else if (localSession) {
           console.log("🔍 로컬 메모리에서 로드된 데이터:", localSession);
           setSession(localSession);
@@ -61,7 +93,7 @@ export function SessionJoinPage() {
     };
 
     fetchSessionDetail();
-  }, [sessionId, getSession]);
+  }, [sessionId]);
 
   // ✅ [나중에 인증 붙이면 주석 해제]
   // if (!user) return null;
@@ -107,6 +139,11 @@ export function SessionJoinPage() {
       });
       if (!res.ok) {
         const err = await res.json();
+        if (err?.error === "이미 참여 신청한 세션입니다.") {
+          navigate(`/session/${sessionId}/labeling/${type}?userId=${userId}`);
+          return;
+        }
+
         alert(err.error || "참여 신청 실패");
         return;
       }

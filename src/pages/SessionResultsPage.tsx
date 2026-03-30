@@ -1,6 +1,8 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useTrainingData } from "../contexts/TrainingDataContext";
+import { useSession } from "../contexts/SessionContext";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { downloadModelFiles } from "../utils/download"; // ✅ 헬퍼 함수 import
@@ -18,6 +20,9 @@ export function SessionResultsPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { finalMetrics } = useTrainingData();
+  const { getSession } = useSession();
+  const session = getSession(sessionId || "");
 
   // 로그인 체크
   useEffect(() => {
@@ -31,16 +36,33 @@ export function SessionResultsPage() {
   }
 
   // ✅ [수정됨] 디자인은 그대로, 데이터만 CheXpert 결과로 변경
+  const storedResult = localStorage.getItem("session_result");
+  const parsedResult = storedResult ? JSON.parse(storedResult) : null;
+  const resultMetrics = finalMetrics || parsedResult;
+  const startTime = resultMetrics?.startTime || new Date().toLocaleString();
+  const endTime = resultMetrics?.endTime || new Date().toLocaleString();
+  const durationText = (() => {
+    const startMs = new Date(startTime).getTime();
+    const endMs = new Date(endTime).getTime();
+    if (Number.isNaN(startMs) || Number.isNaN(endMs) || endMs < startMs) {
+      return "계산 불가";
+    }
+    const totalSeconds = Math.floor((endMs - startMs) / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}분 ${seconds}초`;
+  })();
+
   const results = {
-    sessionTitle: "흉부 X-ray 병변 탐지 (CheXpert)", // 제목 변경
-    modelArchitecture: "CheXpert-Light (Custom CNN)", // 모델명 변경
-    finalAccuracy: 0.9643, // 로그 기반 정확도
-    finalLoss: 0.0926,     // 로그 기반 Loss
-    participatingUsers: 2, // 참여 병원 수
-    totalRounds: 20,        // 스크린샷에 맞춰 20라운드로 설정
-    startTime: new Date(Date.now() - 14 * 60000 - 23000).toLocaleString(), // 약 14분 전
-    endTime: new Date().toLocaleString(), // 현재 시간
-    trainingDuration: "14분 23초", // 소요 시간
+    sessionTitle: session?.title || "연합학습 결과",
+    modelArchitecture: "CheXpert-Light (Custom CNN)",
+    finalAccuracy: resultMetrics?.accuracy || 0,
+    finalLoss: resultMetrics?.loss || 0,
+    participatingUsers: session?.targetParticipants || 0,
+    totalRounds: resultMetrics?.rounds || session?.rounds || 0,
+    startTime,
+    endTime,
+    trainingDuration: durationText,
   };
 
   const handleDownload = () => {

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 
 export interface Session {
   id: string;
@@ -6,6 +6,7 @@ export interface Session {
   dataType: string;
   classNames: string[];
   algorithm?: string; // 알고리즘 필드 추가
+  rounds: number;
   createdAt: string;
   createdBy: string;
   status: "waiting" | "running" | "completed"; // 상태 추가
@@ -16,6 +17,7 @@ export interface Session {
 interface SessionContextType {
   sessions: Session[];
   addSession: (session: Session) => void;
+  upsertSession: (session: Session) => void;
   getSession: (id: string) => Session | undefined;
 }
 
@@ -29,6 +31,7 @@ const DEMO_SESSIONS: Session[] = [
     dataType: "X-ray",
     classNames: ["No Finding", "Pneumonia", "Edema", "Consolidation"],
     algorithm: "FedAvg",
+    rounds: 5,
     createdAt: new Date().toISOString(),
     createdBy: "서울대병원",
     status: "waiting",
@@ -41,6 +44,7 @@ const DEMO_SESSIONS: Session[] = [
     dataType: "X-ray",
     classNames: ["No Finding", "Mass", "Nodule"],
     algorithm: "FedAdam",
+    rounds: 8,
     createdAt: new Date().toISOString(),
     createdBy: "아산병원",
     status: "running",
@@ -53,6 +57,7 @@ const DEMO_SESSIONS: Session[] = [
     dataType: "Dermoscopy",
     classNames: ["Benign", "Malignant"],
     algorithm: "FedAvg",
+    rounds: 3,
     createdAt: new Date().toISOString(),
     createdBy: "삼성서울병원",
     status: "completed",
@@ -63,6 +68,7 @@ const DEMO_SESSIONS: Session[] = [
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [sessions, setSessions] = useState<Session[]>([]);
+  const sessionsRef = useRef<Session[]>([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('helios_sessions');
@@ -76,18 +82,46 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const addSession = (session: Session) => {
-    const updated = [session, ...sessions]; // 최신순 정렬
-    setSessions(updated);
-    localStorage.setItem('helios_sessions', JSON.stringify(updated));
-  };
+  useEffect(() => {
+    sessionsRef.current = sessions;
+  }, [sessions]);
 
-  const getSession = (id: string) => {
-    return sessions.find(s => s.id === id);
-  };
+  const addSession = useCallback((session: Session) => {
+    setSessions((prev) => {
+      const updated = [session, ...prev];
+      localStorage.setItem('helios_sessions', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const upsertSession = useCallback((session: Session) => {
+    setSessions((prev) => {
+      const existingIndex = prev.findIndex((item) => item.id === session.id);
+      if (existingIndex === -1) {
+        const updated = [session, ...prev];
+        localStorage.setItem('helios_sessions', JSON.stringify(updated));
+        return updated;
+      }
+
+      const merged = { ...prev[existingIndex], ...session };
+      const unchanged = JSON.stringify(prev[existingIndex]) === JSON.stringify(merged);
+      if (unchanged) {
+        return prev;
+      }
+
+      const updated = prev.map((item, index) => (index === existingIndex ? merged : item));
+
+      localStorage.setItem('helios_sessions', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  const getSession = useCallback((id: string) => {
+    return sessionsRef.current.find(s => s.id === id);
+  }, []);
 
   return (
-    <SessionContext.Provider value={{ sessions, addSession, getSession }}>
+    <SessionContext.Provider value={{ sessions, addSession, upsertSession, getSession }}>
       {children}
     </SessionContext.Provider>
   );

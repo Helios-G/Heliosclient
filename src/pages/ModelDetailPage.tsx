@@ -3,27 +3,31 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Badge } from "../components/ui/badge";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Calendar, Building2, Layers, TrendingUp, Clock, Check, Database, Cpu } from "lucide-react";
+import { mockContributedModels, mockDownloadModels } from "../data/mockContributedModels";
+import { downloadModelFiles } from "../utils/download";
 import {
-  LineChart,
+  CartesianGrid,
+  Legend,
   Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  BarChart,
-  Bar
 } from "recharts";
 
 export function ModelDetailPage() {
   const { modelId } = useParams();
   const navigate = useNavigate();
   const { hospital } = useAuth();
+  const modelDetail =
+    mockContributedModels.find((item) => item.id === modelId) ||
+    mockDownloadModels.find((item) => item.id === modelId);
+  const backPath = modelDetail?.source === "download" ? "/download" : "/mypage";
+  const backLabel = modelDetail?.source === "download" ? "모델 다운로드로 돌아가기" : "기여 이력으로 돌아가기";
+  const pageTitle = modelDetail?.source === "download" ? "모델 상세" : "모델 기여 상세";
 
-  // 로그인 체크
   useEffect(() => {
     if (!hospital) {
       navigate("/login");
@@ -34,252 +38,233 @@ export function ModelDetailPage() {
     return null;
   }
 
-  // 모델 상세 정보 (실제로는 API에서 가져옴)
-  const modelDetail = {
-    title: "세션 제목/사용 데이터셋 (version)",
-    updatedTime: "updated 5 hours ago",
-    participatingHospitals: ["이산병원", "서울 중앙병원", "연세내과"],
-    rounds: 3,
-    learningRate: "자동",
-    performance: {
-      finalAccuracy: 94.2,
-      finalLoss: 0.156,
-      precision: 93.8,
-      recall: 94.6,
-      f1Score: 94.2
-    },
-    trainingHistory: [
-      { round: 0, accuracy: 0.50, loss: 2.0 },
-      { round: 1, accuracy: 0.78, loss: 1.2 },
-      { round: 2, accuracy: 0.88, loss: 0.6 },
-      { round: 3, accuracy: 0.942, loss: 0.156 }
-    ],
-    modelArchitecture: "ResNet-50",
-    totalParameters: "25.6M",
-    modelSize: "245 MB",
-    framework: "TensorFlow 2.15",
-    datasetInfo: {
-      totalSamples: 15000,
-      trainingSamples: 12000,
-      validationSamples: 3000,
-      classes: ["정상", "이상"],
-      augmentation: "회전, 반전, 밝기 조정"
-    },
-    trainingConfig: {
-      batchSize: 32,
-      optimizer: "Adam",
-      initialLearningRate: 0.001,
-      lossFunction: "Categorical Crossentropy"
-    },
-    startTime: "2025-12-04 10:00:00",
-    endTime: "2025-12-04 12:30:00",
-    duration: "2시간 30분"
-  };
+  if (!modelDetail) {
+    return (
+      <div className="min-h-screen py-12 px-4 bg-white">
+        <div className="max-w-3xl mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => navigate(backPath)}
+            className="mb-4 -ml-4"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            {backLabel}
+          </Button>
+          <Card className="p-8 border-2 shadow-lg text-center">
+            <h1 className="text-2xl font-bold text-gray-800 mb-2">모델 정보를 찾을 수 없습니다</h1>
+            <p className="text-gray-600">백엔드 연동 전 임시 상세 페이지라 등록된 목 데이터만 표시됩니다.</p>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   const handleDownload = () => {
-    alert("모델 다운로드가 시작됩니다.");
+    downloadModelFiles(modelDetail.id);
   };
 
   return (
     <div className="min-h-screen py-12 px-4 bg-white">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
+      <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <Button
             variant="ghost"
-            onClick={() => navigate("/download")}
+            onClick={() => navigate(backPath)}
             className="mb-4 -ml-4"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            목록으로 돌아가기
+            {backLabel}
           </Button>
-
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-gray-800 mb-2">{modelDetail.title}</h1>
-              <p className="text-gray-600">{modelDetail.updatedTime}</p>
-            </div>
-            <Button
-              style={{ backgroundColor: '#FF9500' }}
-              className="text-white hover:opacity-90 px-6 py-6"
-              onClick={handleDownload}
-            >
-              <Download className="w-5 h-5 mr-2" />
-              모델 다운로드
-            </Button>
-          </div>
         </div>
 
-        {/* 참여 기관 */}
-        <Card className="p-6 mb-6 border-2" style={{ backgroundColor: '#F5F5F5' }}>
-          <p className="text-gray-700">
-            <span style={{ color: '#6B3131' }}>참여 기관:</span>{" "}
-            {modelDetail.participatingHospitals.join(", ")}
-          </p>
-        </Card>
-
-        {/* 기본 정보 */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="p-6 border-2">
-            <p className="text-sm text-gray-600 mb-1">라운드 수</p>
-            <p className="text-2xl" style={{ color: '#6B3131' }}>
-              {modelDetail.rounds}
-            </p>
-          </Card>
-          <Card className="p-6 border-2">
-            <p className="text-sm text-gray-600 mb-1">러닝률</p>
-            <p className="text-2xl" style={{ color: '#6B3131' }}>
-              {modelDetail.learningRate}
-            </p>
-          </Card>
-          <Card className="p-6 border-2">
-            <p className="text-sm text-gray-600 mb-1">모델 아키텍처</p>
-            <p className="text-2xl" style={{ color: '#6B3131' }}>
-              {modelDetail.modelArchitecture}
-            </p>
-          </Card>
+        <div className="mb-12 text-center">
+          <h1 className="text-gray-800 mb-2">{pageTitle}</h1>
+          <p className="text-gray-600">{modelDetail.sessionTitle}</p>
         </div>
 
-        {/* 성능 */}
-        <Card className="p-8 mb-8 border-2">
-          <h2 style={{ color: '#6B3131' }} className="mb-6">모델 성능</h2>
-          
-          {/* 주요 성능 지표 */}
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            <div 
-              className="p-6 rounded-lg border-2 text-center"
-              style={{ backgroundColor: '#FFF9F5' }}
-            >
-              <p className="text-sm text-gray-600 mb-2">Accuracy</p>
-              <p className="text-3xl" style={{ color: '#FF9500' }}>
-                {modelDetail.performance.finalAccuracy}%
-              </p>
-            </div>
-            <div 
-              className="p-6 rounded-lg border-2 text-center"
-              style={{ backgroundColor: '#FFF9F5' }}
-            >
-              <p className="text-sm text-gray-600 mb-2">Loss</p>
-              <p className="text-3xl" style={{ color: '#6B3131' }}>
-                {modelDetail.performance.finalLoss}
-              </p>
+        <Card className="p-10 mb-8 border-2 shadow-lg">
+          <div className="flex justify-center mb-8">
+            <div className="px-6 py-3 rounded-full" style={{ backgroundColor: "#E8F5E9" }}>
+              <span className="text-green-700">✓ {modelDetail.status}</span>
             </div>
           </div>
 
-          {/* 성능 시각화 그래프 */}
           <div className="space-y-8">
             <div>
-              <h3 className="mb-4" style={{ color: '#6B3131' }}>학습 과정 - Accuracy 변화</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={modelDetail.trainingHistory}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="round" 
-                    label={{ value: 'Round', position: 'insideBottom', offset: -5 }}
-                  />
-                  <YAxis 
-                    domain={[0, 1]}
-                    label={{ value: 'Accuracy', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="accuracy" 
-                    stroke="#FF9500" 
-                    strokeWidth={3}
-                    name="Accuracy"
-                    dot={{ fill: '#FF9500', r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              <h2 style={{ color: "#6B3131" }} className="mb-6 text-center">기여 모델 요약</h2>
             </div>
 
-            <div>
-              <h3 className="mb-4" style={{ color: '#6B3131' }}>학습 과정 - Loss 변화</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={modelDetail.trainingHistory}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="round" 
-                    label={{ value: 'Round', position: 'insideBottom', offset: -5 }}
-                  />
-                  <YAxis 
-                    label={{ value: 'Loss', angle: -90, position: 'insideLeft' }}
-                  />
-                  <Tooltip />
-                  <Legend />
-                  <Line 
-                    type="monotone" 
-                    dataKey="loss" 
-                    stroke="#6B3131" 
-                    strokeWidth={3}
-                    name="Loss"
-                    dot={{ fill: '#6B3131', r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </Card>
-
-        {/* 모델 구조 및 상세 정보 */}
-        <Card className="p-8 mb-8 border-2">
-          <h2 style={{ color: '#6B3131' }} className="mb-6">학습 상세 정보</h2>
-          
-          <div className="space-y-6">
-            {/* 모델 아키텍처 */}
-            <div>
-              <h3 className="mb-3" style={{ color: '#6B3131' }}>모델 아키텍처</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 rounded-lg" style={{ backgroundColor: '#FFF9F5' }}>
-                  <p className="text-sm text-gray-600 mb-1">네트워크</p>
-                  <p>{modelDetail.modelArchitecture}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <Layers className="w-5 h-5" style={{ color: "#FF9500" }} />
+                  <h4 style={{ color: "#6B3131" }}>버전</h4>
                 </div>
+                <p className="text-2xl">{modelDetail.version}</p>
+              </div>
+
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <Building2 className="w-5 h-5" style={{ color: "#FF9500" }} />
+                  <h4 style={{ color: "#6B3131" }}>참여 기관 수</h4>
+                </div>
+                <p className="text-2xl">{modelDetail.participatingUsers}</p>
+              </div>
+
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <TrendingUp className="w-5 h-5" style={{ color: "#FF9500" }} />
+                  <h4 style={{ color: "#6B3131" }}>총 라운드 수</h4>
+                </div>
+                <p className="text-2xl">{modelDetail.totalRounds} 라운드</p>
+              </div>
+
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="flex items-center gap-3 mb-3">
+                  <Clock className="w-5 h-5" style={{ color: "#FF9500" }} />
+                  <h4 style={{ color: "#6B3131" }}>학습 소요 시간</h4>
+                </div>
+                <p className="text-2xl">{modelDetail.trainingDuration}</p>
               </div>
             </div>
 
-            {/* 학습 설정 */}
             <div>
-              <h3 className="mb-3" style={{ color: '#6B3131' }}>학습 설정</h3>
-              <div className="p-6 rounded-lg" style={{ backgroundColor: '#FFF9F5' }}>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">배치 크기</p>
-                    <p className="text-lg">{modelDetail.trainingConfig.batchSize}</p>
+              <h3 className="mb-4" style={{ color: "#6B3131" }}>결과 요약</h3>
+              <div className="space-y-4">
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 style={{ color: "#6B3131" }} className="mb-1">최종 정확도 (Accuracy)</h4>
+                      <p className="text-sm text-gray-600">기여 모델의 최종 정확도</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl" style={{ color: "#FF9500" }}>
+                        {(modelDetail.finalAccuracy * 100).toFixed(2)}%
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">옵티마이저</p>
-                    <p className="text-lg">{modelDetail.trainingConfig.optimizer}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">초기 학습률</p>
-                    <p className="text-lg">{modelDetail.trainingConfig.initialLearningRate}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-600">손실 함수</p>
-                    <p className="text-lg">{modelDetail.trainingConfig.lossFunction}</p>
+                </div>
+
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h4 style={{ color: "#6B3131" }} className="mb-1">최종 손실 (Loss)</h4>
+                      <p className="text-sm text-gray-600">학습 종료 시점의 손실 값</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-3xl" style={{ color: "#6B3131" }}>
+                        {modelDetail.finalLoss.toFixed(4)}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* 학습 시간 */}
             <div>
-              <h3 className="mb-3" style={{ color: '#6B3131' }}>학습 일정</h3>
-              <div className="p-6 rounded-lg" style={{ backgroundColor: '#FFF9F5' }}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-600">시작 시간</p>
-                    <p className="text-lg">{modelDetail.startTime}</p>
+              <h3 className="mb-4" style={{ color: "#6B3131" }}>학습 시 성능 추이</h3>
+              <div className="grid grid-cols-1 gap-6">
+                <Card className="p-6 border-2">
+                  <h4 className="mb-4" style={{ color: "#6B3131" }}>정확도 변화</h4>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={modelDetail.trainingHistory}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="round" />
+                      <YAxis domain={[0, 1]} tickFormatter={(value) => `${Math.round(value * 100)}%`} />
+                      <Tooltip formatter={(value: number) => [`${(value * 100).toFixed(2)}%`, "Accuracy"]} />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="accuracy"
+                        stroke="#FF9500"
+                        strokeWidth={3}
+                        name="Accuracy"
+                        dot={{ fill: "#FF9500", r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Card>
+
+                <Card className="p-6 border-2">
+                  <h4 className="mb-4" style={{ color: "#6B3131" }}>Loss 변화</h4>
+                  <ResponsiveContainer width="100%" height={280}>
+                    <LineChart data={modelDetail.trainingHistory}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="round" />
+                      <YAxis />
+                      <Tooltip formatter={(value: number) => [value.toFixed(4), "Loss"]} />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="loss"
+                        stroke="#6B3131"
+                        strokeWidth={3}
+                        name="Loss"
+                        dot={{ fill: "#6B3131", r: 4 }}
+                        activeDot={{ r: 6 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </Card>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-4" style={{ color: "#6B3131" }}>학습 상세</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Database className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <h4 style={{ color: "#6B3131" }}>데이터 형식</h4>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">종료 시간</p>
-                    <p className="text-lg">{modelDetail.endTime}</p>
+                  <p className="text-lg">{modelDetail.dataType}</p>
+                </div>
+
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Cpu className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <h4 style={{ color: "#6B3131" }}>알고리즘</h4>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-600">소요 시간</p>
-                    <p className="text-lg">{modelDetail.duration}</p>
+                  <p className="text-lg">{modelDetail.algorithm}</p>
+                </div>
+
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Layers className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <h4 style={{ color: "#6B3131" }}>모델 구조</h4>
+                  </div>
+                  <p className="text-lg">{modelDetail.modelArchitecture}</p>
+                </div>
+
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                  <div className="flex items-center gap-3 mb-3">
+                    <Check className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <h4 style={{ color: "#6B3131" }}>학습 완료 날짜</h4>
+                  </div>
+                  <p className="text-lg">{modelDetail.completedAt}</p>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className="mb-4" style={{ color: "#6B3131" }}>학습 일정</h3>
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <div>
+                      <p className="text-sm text-gray-600">학습 시작 시간</p>
+                      <p className="text-lg">{modelDetail.startTime}</p>
+                    </div>
+                  </div>
+                  <div className="border-t border-gray-200 my-3"></div>
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <div>
+                      <p className="text-sm text-gray-600">학습 종료 시간</p>
+                      <p className="text-lg">{modelDetail.endTime}</p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -287,29 +272,17 @@ export function ModelDetailPage() {
           </div>
         </Card>
 
-        {/* 사용 가이드 */}
-        <Card className="p-6 border-2 border-blue-200 bg-blue-50">
-          <h3 className="mb-3 text-blue-900">모델 사용 가이드</h3>
-          <div className="space-y-2 text-sm text-blue-800">
-            <p>• 다운로드한 모델은 TensorFlow 2.x 이상에서 사용 가능합니다.</p>
-            <p>• 입력 이미지 크기: 224x224 픽셀 (RGB)</p>
-            <p>• 전처리: 이미지 정규화 필요 (0-1 범위)</p>
-            <p>• 출력: Softmax 확률 분포 (각 클래스별 확률)</p>
-            <p>• 의료 진단 보조 목적으로만 사용하며, 최종 진단은 전문의가 수행해야 합니다.</p>
-          </div>
-        </Card>
-
-        {/* 하단 버튼 */}
-        <div className="mt-8 flex justify-center gap-4">
+        <div className="flex justify-center gap-4">
           <Button
             variant="outline"
-            onClick={() => navigate("/download")}
-            className="px-8 py-6"
+            onClick={() => navigate(backPath)}
+            className="px-8 py-6 border-2"
+            style={{ borderColor: "#6B3131", color: "#6B3131" }}
           >
-            목록으로
+            {modelDetail.source === "download" ? "모델 다운로드로 이동" : "기여 이력으로 이동"}
           </Button>
           <Button
-            style={{ backgroundColor: '#FF9500' }}
+            style={{ backgroundColor: "#FF9500" }}
             className="text-white hover:opacity-90 px-8 py-6"
             onClick={handleDownload}
           >
@@ -317,6 +290,13 @@ export function ModelDetailPage() {
             모델 다운로드
           </Button>
         </div>
+
+        <Card className="mt-8 p-6 border-2 border-blue-200 bg-blue-50">
+          <p className="text-sm text-blue-800">
+            💡 현재 상세 페이지는 백엔드 모델 메타데이터 API가 준비되기 전까지 사용하는 임시 UI입니다.
+            이후 실제 모델 요약, 버전 정보, 성능 지표를 서버 응답으로 대체하면 됩니다.
+          </p>
+        </Card>
       </div>
     </div>
   );

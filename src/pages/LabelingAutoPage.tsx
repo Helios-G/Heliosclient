@@ -8,6 +8,7 @@ import { Folder, Loader2, Download, Check } from "lucide-react";
 import * as tf from "@tensorflow/tfjs";
 import { useTrainingData } from "../contexts/TrainingDataContext";
 import { useSession } from "../contexts/SessionContext";
+import { authFetch } from "../lib/authFetch";
 
 // ─── 레이블 정의 ───────────────────────────────────────────────────────────────
 const CHEXPERT_LABELS = [
@@ -45,6 +46,7 @@ interface LabeledData {
   label: string;
   confidence: number;
   fullProbabilities: number[];
+  tensor?: tf.Tensor;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -53,9 +55,10 @@ export function LabelingAutoPage() {
   const navigate      = useNavigate();
   const { user }  = useAuth();
   const { setTrainingData } = useTrainingData();
-  const { getSession }      = useSession();
+  const { getSession, upsertSession } = useSession();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const loadedModelTypeRef = useRef<ModelType | null>(null);
 
   const [step,             setStep]             = useState<"select" | "labeling" | "review">("select");
   const [labelingProgress, setLabelingProgress] = useState(0);
@@ -66,39 +69,100 @@ export function LabelingAutoPage() {
 
   const [model,     setModel]     = useState<tf.GraphModel | tf.LayersModel | null>(null);
   const [modelType, setModelType] = useState<ModelType>("chexpert");
+  const [sessionData, setSessionData] = useState<any | null>(null);
+  const [isSessionLoading, setIsSessionLoading] = useState(true);
 
   useEffect(() => {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
+  useEffect(() => {
+    const loadSession = async () => {
+      setIsSessionLoading(true);
+      try {
+        const localSession = getSession(sessionId || "");
+
+        try {
+          const response = await authFetch(`/sessions/${sessionId}`);
+          if (response.ok) {
+            const serverSession = await response.json();
+            setSessionData(serverSession);
+            upsertSession({
+              id: String(serverSession.sessionId ?? sessionId ?? ""),
+              title: serverSession.title ?? "제목 없음",
+              dataType: serverSession.dataFormat ?? "X-ray",
+              classNames:
+                typeof serverSession.labelClassList === "string" && serverSession.labelClassList.length > 0
+                  ? serverSession.labelClassList.split(",").map((item: string) => item.trim())
+                  : [],
+              algorithm: serverSession.algorithm ?? localSession?.algorithm ?? "FedAvg",
+              rounds: serverSession.rounds ?? localSession?.rounds ?? 5,
+              createdAt: serverSession.createdAt ?? localSession?.createdAt ?? new Date().toISOString(),
+              createdBy: serverSession.createdBy ?? localSession?.createdBy ?? "unknown",
+              status:
+                serverSession.status === "IN_PROGRESS"
+                  ? "running"
+                  : serverSession.status === "COMPLETED"
+                    ? "completed"
+                    : "waiting",
+              participants: serverSession.participantCount ?? localSession?.participants ?? 0,
+              targetParticipants: serverSession.maxParticipants ?? localSession?.targetParticipants ?? 0,
+            });
+            return;
+          }
+        } catch (error) {
+          console.warn("세션 상세를 서버에서 불러오지 못했습니다. 로컬 세션으로 계속합니다.", error);
+        }
+
+        setSessionData(localSession ?? null);
+      } catch (err) {
+        console.error("❌ 세션 로드 실패:", err);
+      } finally {
+        setIsSessionLoading(false);
+      }
+    };
+
+    loadSession();
+  }, [sessionId, getSession, upsertSession]);
+
   // ─── 모델 로딩: 세션 dataType === "Fundus" → DR, 나머지 → CheXpert ─────────
   useEffect(() => {
     const loadModel = async () => {
+      if (isSessionLoading || !sessionData) return;
+
       try {
+        const rawDataType = sessionData?.dataFormat ?? sessionData?.dataType ?? "X-ray";
+        const isDR = rawDataType === "Fundus";
+        const nextModelType: ModelType = isDR ? "dr" : "chexpert";
+        setModelType(nextModelType);
+
+        if (loadedModelTypeRef.current === nextModelType && model) {
+          return;
+        }
+
         await tf.setBackend("webgl");
         await tf.ready();
-
-        const session = getSession(sessionId || "");
-        const isDR    = session?.dataType === "Fundus";
-        setModelType(isDR ? "dr" : "chexpert");
 
         if (isDR) {
           console.log("⏳ DR 당뇨망막병증 모델 로딩 중...");
           const m = await tf.loadLayersModel("/models/dr_tfjs_manual/model.json");
           setModel(m);
+          loadedModelTypeRef.current = "dr";
           console.log("✅ DR 모델 로드 완료!");
         } else {
           console.log("⏳ CheXpert 모델 로딩 중...");
           const m = await tf.loadGraphModel("/models/chexpert_tfjs/model.json");
           setModel(m);
+          loadedModelTypeRef.current = "chexpert";
           console.log("✅ CheXpert 모델 로드 완료!");
         }
       } catch (err) {
         console.error("❌ 모델 로드 실패:", err);
       }
     };
+
     loadModel();
-  }, [sessionId, getSession]);
+  }, [isSessionLoading, sessionData]);
 
   if (!user) return null;
 
@@ -110,9 +174,13 @@ export function LabelingAutoPage() {
     if (!files || files.length === 0) return;
     if (!model) { alert("AI 모델이 아직 로딩되지 않았습니다."); return; }
 
-    setStep("labeling");
-
     const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
+    if (imageFiles.length === 0) {
+      alert("이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+
+    setStep("labeling");
     const results: LabeledData[] = [];
 
     for (let i = 0; i < imageFiles.length; i++) {
@@ -156,7 +224,7 @@ export function LabelingAutoPage() {
 
       } else {
         // ── CheXpert: NCHW [1,3,320,320] → sigmoid → disease-priority ────────
-        const probabilities = tf.tidy(() => {
+        const { processedTensor, probabilities } = tf.tidy(() => {
           let img = tf.browser.fromPixels(imgEl) as tf.Tensor3D;
           img = tf.image.resizeBilinear(img, [320, 320]) as tf.Tensor3D;
           img = img.div(255.0) as tf.Tensor3D;
@@ -165,7 +233,7 @@ export function LabelingAutoPage() {
           const batch  = img.expandDims(0);
           const output = (model as tf.GraphModel).predict(batch) as tf.Tensor;
           const probs  = output.sigmoid();
-          return probs.dataSync();
+          return { processedTensor: batch.clone(), probabilities: probs.dataSync() };
         });
 
         const probsArray = Array.from(probabilities);
@@ -187,6 +255,7 @@ export function LabelingAutoPage() {
           label:             finalLabel,
           confidence:        finalScore,
           fullProbabilities: probsArray,
+          tensor:            processedTensor,
         });
       }
 
@@ -195,6 +264,11 @@ export function LabelingAutoPage() {
     }
 
     setLabeledData(results);
+    if (results.length === 0) {
+      alert("라벨링할 수 있는 이미지를 불러오지 못했습니다.");
+      setStep("select");
+      return;
+    }
     setStep("review");
   };
 
@@ -234,60 +308,61 @@ export function LabelingAutoPage() {
   const handleStartTraining = async () => {
     setIsProcessing(true);
     try {
-      if (labeledData.length === 0) return;
-      const numClasses = modelType === "dr" ? 5 : 14;
-      const shuffledData = [...labeledData].sort(() => Math.random() - 0.5);
-      let splitIdx = Math.floor(shuffledData.length * 0.8);
-      splitIdx = Math.min(Math.max(splitIdx, 1), shuffledData.length - 1);
+      if (labeledData.length === 0) {
+        alert("라벨링된 데이터가 없습니다.");
+        return;
+      }
+      const numClasses  = modelType === "dr" ? 5 : 14;
+      const xTensors: tf.Tensor[] = [];
+      const yLabels:  number[][]  = [];
 
-      const trainData = shuffledData.slice(0, splitIdx);
-      const testData = shuffledData.slice(splitIdx);
+      for (const data of labeledData) {
+        const imgEl = new Image();
+        imgEl.src   = data.imageUrl;
+        await new Promise(resolve => { imgEl.onload = resolve; });
 
-      const convertToTensors = async (dataList: LabeledData[]) => {
-        const xList: tf.Tensor[] = [];
-        const yList: number[][] = [];
+        const canvas = document.createElement("canvas");
+        canvas.width = canvas.height = 224;
+        const ctx = canvas.getContext("2d");
+        if (ctx) ctx.drawImage(imgEl, 0, 0, 224, 224);
 
-        for (const data of dataList) {
-          const imgEl = new Image();
-          imgEl.src = data.imageUrl;
-          await new Promise(resolve => { imgEl.onload = resolve; });
+        xTensors.push(tf.tidy(() =>
+          tf.browser.fromPixels(canvas).toFloat().div(255.0)
+        ));
 
-          const canvas = document.createElement("canvas");
-          canvas.width = canvas.height = 224;
-          const ctx = canvas.getContext("2d");
-          if (ctx) ctx.drawImage(imgEl, 0, 0, 224, 224);
+        const row = new Array(numClasses).fill(0);
+        const idx = labels.indexOf(data.label);
+        if (idx !== -1) row[idx] = 1;
+        yLabels.push(row);
 
-          xList.push(tf.tidy(() =>
-            tf.browser.fromPixels(canvas).toFloat().div(255.0)
-          ));
+        await new Promise(r => setTimeout(r, 10));
+      }
 
-          const row = new Array(numClasses).fill(0.0);
-          const idx = labels.indexOf(data.label);
-          if (idx !== -1) row[idx] = 1.0;
-          yList.push(row);
+      if (xTensors.length > 0) {
+        const xAll = tf.stack(xTensors);
+        const yAll = tf.tensor2d(yLabels, [yLabels.length, numClasses]);
 
-          await new Promise(resolve => setTimeout(resolve, 10));
+        if (xTensors.length === 1) {
+          setTrainingData(xAll, yAll, xAll.clone(), yAll.clone());
+        } else {
+          const testCount = Math.max(1, Math.floor(xTensors.length * 0.2));
+          const trainCount = xTensors.length - testCount;
+
+          setTrainingData(
+            xAll.slice([0, 0, 0, 0], [trainCount, -1, -1, -1]),
+            yAll.slice([0, 0], [trainCount, -1]),
+            xAll.slice([trainCount, 0, 0, 0], [testCount, -1, -1, -1]),
+            yAll.slice([trainCount, 0], [testCount, -1])
+          );
         }
-
-        if (xList.length === 0) return null;
-
-        return {
-          x: tf.stack(xList),
-          y: tf.tensor2d(yList, [yList.length, numClasses], "float32")
-        };
-      };
-
-      const trainTensors = await convertToTensors(trainData);
-      const testTensors = await convertToTensors(testData);
-
-      if (trainTensors && testTensors) {
-        setTrainingData(
-          trainTensors.x,
-          trainTensors.y,
-          testTensors.x,
-          testTensors.y
-        );
+        console.log("✅ 학습 데이터 저장 완료:", {
+          totalImages: labeledData.length,
+          trainShape: xAll.shape,
+          labelShape: yAll.shape,
+        });
         navigate(`/session/${sessionId}/training`);
+      } else {
+        alert("학습용 텐서를 생성하지 못했습니다.");
       }
     } catch (err) {
       console.error(err);
@@ -363,8 +438,9 @@ export function LabelingAutoPage() {
               }}
             >
               {model
+                && !isSessionLoading
                 ? <><Folder style={{ width: "24px", height: "24px", marginRight: "10px" }} />폴더 업로드 및 분석 시작</>
-                : <><Loader2 style={{ width: "24px", height: "24px", marginRight: "10px" }} className="animate-spin" />모델 로딩 중...</>
+                : <><Loader2 style={{ width: "24px", height: "24px", marginRight: "10px" }} className="animate-spin" />세션/모델 로딩 중...</>
               }
             </button>
           </div>

@@ -52,6 +52,7 @@ export function SessionCreatePage() {
   const [dataType, setDataType] = useState("");
   const [algorithm, setAlgorithm] = useState("FedAvg");
   const [maxParticipants, setMaxParticipants] = useState("5");
+  const [rounds, setRounds] = useState("5");
   const [classCount, setClassCount] = useState("");
   const [classNames, setClassNames] = useState<string[]>([]);
   const [currentClassName, setCurrentClassName] = useState("");
@@ -114,6 +115,7 @@ export function SessionCreatePage() {
       title: sessionTitle,
       description: notes || "설명 없음",
       maxParticipants: parseInt(maxParticipants),
+      rounds: parseInt(rounds),
       dataFormat: dataType,
       labelClassCount: parseInt(classCount),
       labelClassList: classNames,
@@ -137,6 +139,7 @@ export function SessionCreatePage() {
         ...sessionRequest,
         id: result.sessionId.toString(),
         algorithm: algorithm,
+        rounds: result.rounds ?? parseInt(rounds),
         createdAt: new Date().toISOString(),
         createdBy: user.name,
         status: "WAITING",
@@ -200,6 +203,20 @@ export function SessionCreatePage() {
               className="border-2 border-orange-200 focus:border-orange-500"
             />
             <p className="text-xs text-gray-500 mt-1">설정한 인원수가 모두 모집되면 연합학습이 자동으로 시작됩니다.</p>
+          </div>
+
+          <div>
+            <Label className="mb-2 block">학습 라운드 수 *</Label>
+            <Input
+              type="number"
+              min="1"
+              max="100"
+              value={rounds}
+              onChange={(e) => setRounds(e.target.value)}
+              placeholder="예: 5"
+              className="border-2 border-orange-200 focus:border-orange-500"
+            />
+            <p className="text-xs text-gray-500 mt-1">이 값이 백엔드 세션에 저장되고, 학습 시작 시 AI 서버로 전달됩니다.</p>
           </div>
 
           <div>
