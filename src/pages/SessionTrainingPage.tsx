@@ -64,7 +64,7 @@ export function SessionTrainingPage() {
     }
 
     setStatus("training");
-    setLogMessage("연합학습 서버(ws://localhost:8083)에 연결 시도 중...");
+    setLogMessage("연합학습 서버(ws://localhost:8000)에 연결 시도 중...");
 
     try {
       const client = new MyFlowerClient();
@@ -97,9 +97,9 @@ export function SessionTrainingPage() {
       const algo = session?.algorithm || "FedAvg";
 
       const urlParams = new URLSearchParams(window.location.search);
-      const mockId = urlParams.get('hId') || user?.id || "1"; 
+      const mockId = urlParams.get('hId') || user?.id?.toString() || "1";
 
-      const wsUrl = `ws://localhost:8083/ws/fl/${sessionId}/${userToken}?algo=${algo}&userId=${mockId}`;
+      const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}&userId=${mockId}`;
 
       console.log(`🔗 웹소켓 연결 시도 (사용자ID: ${mockId}): ${wsUrl}`);
       await flwr.connect(wsUrl, client);
