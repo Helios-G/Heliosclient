@@ -14,6 +14,7 @@ interface User {
 interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
+  hospital: User | null;
   isAdmin: boolean;
   login: (userData: User) => void;
   logout: () => void;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return saved ? JSON.parse(saved) : null;
   });
   const isAdmin = user?.isAdmin || false;
+  const hospital = user;
 
   const login = (userData: User) => {
     setIsLoggedIn(true);
@@ -51,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, user, isAdmin, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, hospital, isAdmin, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

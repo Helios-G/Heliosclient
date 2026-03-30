@@ -1,6 +1,11 @@
 export class Flwr {
   constructor() {
     this.ws = null;
+    this.onStatus = null;
+  }
+
+  setStatusCallback(callback) {
+    this.onStatus = callback;
   }
 
   async connect(url, client) {
@@ -14,6 +19,13 @@ export class Flwr {
 
       this.ws.onmessage = async (event) => {
         const msg = JSON.parse(event.data);
+
+        if (msg.type === "status") {
+          if (this.onStatus) {
+            this.onStatus(msg);
+          }
+          return;
+        }
         
         if (msg.type === "get_parameters") {
           const parameters = await client.getParameters();

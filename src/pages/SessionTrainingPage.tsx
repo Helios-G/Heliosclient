@@ -12,6 +12,7 @@ import { MyFlowerClient } from "../lib/fl_client";
 
 import { useTrainingData } from "../contexts/TrainingDataContext";
 import { useSession } from "../contexts/SessionContext";
+import { authFetch } from "../lib/authFetch";
 
 type TrainingStatus = "preparing" | "training" | "completed";
 
@@ -28,21 +29,69 @@ export function SessionTrainingPage() {
   
   // ✅ 4개 데이터 모두 가져오기
   const { xTrain, yTrain, xTest, yTest, setFinalMetrics } = useTrainingData();
-  const { getSession } = useSession();
+  const { getSession, upsertSession } = useSession();
   
   const session = getSession(sessionId || "");
+  const [sessionMeta, setSessionMeta] = useState(session);
   
   const [status, setStatus] = useState<TrainingStatus>("preparing");
   const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
+  const [totalRounds, setTotalRounds] = useState(session?.rounds || 5);
   const [logMessage, setLogMessage] = useState("서버 연결 대기 중...");
   
   const [startTime] = useState(new Date().toLocaleString());
   const lastMetricsRef = useRef({ acc: 0, loss: 0 });
+  const currentRoundRef = useRef(0);
 
   useEffect(() => {
     if (!user) navigate("/login");
   }, [user, navigate]);
+
+  useEffect(() => {
+    const loadSessionMeta = async () => {
+      if (!sessionId) return;
+
+      try {
+        const response = await authFetch(`/sessions/${sessionId}`);
+        if (!response.ok) return;
+
+        const serverSession = await response.json();
+        const normalizedSession = {
+          id: String(serverSession.sessionId ?? sessionId),
+          title: serverSession.title ?? session?.title ?? "제목 없음",
+          dataType: serverSession.dataFormat ?? session?.dataType ?? "X-ray",
+          classNames:
+            typeof serverSession.labelClassList === "string" && serverSession.labelClassList.length > 0
+              ? serverSession.labelClassList.split(",").map((item: string) => item.trim())
+              : session?.classNames ?? [],
+          algorithm: serverSession.algorithm ?? session?.algorithm ?? "FedAvg",
+          rounds: serverSession.rounds ?? session?.rounds ?? 5,
+          createdAt: serverSession.createdAt ?? session?.createdAt ?? new Date().toISOString(),
+          createdBy: serverSession.createdBy ?? session?.createdBy ?? "unknown",
+          status:
+            serverSession.status === "IN_PROGRESS"
+              ? "running"
+              : serverSession.status === "COMPLETED"
+                ? "completed"
+                : "waiting",
+          participants: serverSession.participantCount ?? session?.participants ?? 0,
+          targetParticipants: serverSession.maxParticipants ?? session?.targetParticipants ?? 0,
+        } as const;
+
+        setSessionMeta(normalizedSession);
+        const currentLocal = getSession(normalizedSession.id);
+        if (JSON.stringify(currentLocal) !== JSON.stringify(normalizedSession)) {
+          upsertSession(normalizedSession);
+        }
+        setTotalRounds(normalizedSession.rounds);
+      } catch (error) {
+        console.warn("학습 페이지 세션 메타데이터를 서버에서 불러오지 못했습니다.", error);
+      }
+    };
+
+    loadSessionMeta();
+  }, [sessionId]);
 
   if (!user) return null;
 
@@ -68,19 +117,31 @@ export function SessionTrainingPage() {
 
     try {
       const client = new MyFlowerClient();
+      const flwr = new Flwr();
+
+      flwr.setStatusCallback((message: { currentRound?: number; totalRounds?: number; progress?: number }) => {
+        const nextRound = message.currentRound || 0;
+        currentRoundRef.current = nextRound;
+        setCurrentRound(nextRound);
+        if (message.totalRounds) {
+          setTotalRounds(message.totalRounds);
+        }
+        setLogMessage(
+          `Round ${nextRound} / ${message.totalRounds || totalRounds} 진행 중 (${message.progress || 0}%)`
+        );
+      });
 
       client.setRoundCallback((epoch: number, loss: number, acc: number) => {
         lastMetricsRef.current = { acc, loss };
 
         setTrainingData((prev) => {
-          const newRound = prev.length + 1;
-          setCurrentRound(newRound);
-          setLogMessage(`Round ${newRound} 완료: 정확도 ${(acc * 100).toFixed(2)}%`);
+          const completedRound = currentRoundRef.current || prev.length + 1;
+          setLogMessage(`Round ${completedRound} 완료: 정확도 ${(acc * 100).toFixed(2)}%`);
 
           return [
             ...prev,
             {
-              round: newRound,
+              round: completedRound,
               accuracy: parseFloat(acc.toFixed(4)),
               loss: parseFloat(loss.toFixed(4)),
             },
@@ -90,11 +151,9 @@ export function SessionTrainingPage() {
 
       console.log("💉 Train/Test 데이터를 클라이언트에 주입합니다.");
       client.addData(xTrain, yTrain, xTest, yTest);
-
-      const flwr = new Flwr();
       
       const userToken = user?.id?.toString() || "1"; 
-      const algo = session?.algorithm || "FedAvg";
+      const algo = sessionMeta?.algorithm || session?.algorithm || "FedAvg";
 
       const urlParams = new URLSearchParams(window.location.search);
       const mockId = urlParams.get('hId') || user?.id?.toString() || "1";
@@ -107,7 +166,7 @@ export function SessionTrainingPage() {
       const finalResult = {
         accuracy: lastMetricsRef.current.acc,
         loss: lastMetricsRef.current.loss,
-        rounds: 5,
+        rounds: totalRounds,
         startTime: startTime,
         endTime: new Date().toLocaleString()
       };
@@ -180,6 +239,7 @@ export function SessionTrainingPage() {
               <div className="mb-6 flex justify-between items-center">
                 <div>
                   <h3 className="mb-2 text-xl font-bold" style={{ color: '#6B3131' }}>현재 Round: {currentRound}</h3>
+                  <p className="text-sm text-gray-500">총 {totalRounds} 라운드</p>
                   <p className="text-gray-600">서버와 통신하며 모델을 학습시키고 있습니다...</p>
                 </div>
                 <div className="animate-pulse bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-bold">

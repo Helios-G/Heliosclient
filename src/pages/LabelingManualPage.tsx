@@ -263,71 +263,67 @@ export function LabelingManualPage() {
     setIsProcessing(true);
     try {
       console.log("🔄 데이터 변환 중 (학습용 224x224)...");
+      
+      const xTensors = [];
+      const yLabels = [];
 
-      const labeledImages = images.filter((img) => img.label);
-      if (labeledImages.length < 2) {
-        alert("수동 학습은 최소 2장 이상의 라벨링된 이미지가 필요합니다.");
-        return;
-      }
+      for (const img of images) {
+        if (!img.label) continue;
+        
+        const imageElement = new Image();
+        imageElement.src = img.imageUrl;
+        await new Promise((resolve) => { imageElement.onload = resolve; });
 
-      const shuffledImages = [...labeledImages].sort(() => Math.random() - 0.5);
-      let splitIdx = Math.floor(shuffledImages.length * 0.8);
-      splitIdx = Math.min(Math.max(splitIdx, 1), shuffledImages.length - 1);
-
-      const trainImages = shuffledImages.slice(0, splitIdx);
-      const testImages = shuffledImages.slice(splitIdx);
-
-      const convertToTensors = async (dataList: ImageFile[]) => {
-        const xList = [];
-        const yList = [];
-
-        for (const img of dataList) {
-          if (!img.label) continue;
-
-          const imageElement = new Image();
-          imageElement.src = img.imageUrl;
-          await new Promise((resolve) => {
-            imageElement.onload = resolve;
-          });
-
-          const canvas = document.createElement('canvas');
-          canvas.width = 224;
-          canvas.height = 224;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
+        // Canvas 최적화 (224x224 - 학습용)
+        const canvas = document.createElement('canvas');
+        canvas.width = 224; 
+        canvas.height = 224;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
             ctx.drawImage(imageElement, 0, 0, 224, 224);
-          }
-
-          const tensor = tf.tidy(() => {
-            return tf.browser.fromPixels(canvas).toFloat().div(255.0);
-          });
-
-          xList.push(tensor);
-
-          const row = new Array(14).fill(0.0);
-          const labelIndex = CHEXPERT_LABELS.indexOf(img.label);
-          if (labelIndex !== -1) {
-            row[labelIndex] = 1.0;
-          }
-          yList.push(row);
-
-          await new Promise((resolve) => setTimeout(resolve, 10));
         }
 
-        if (xList.length === 0) return null;
+        const tensor = tf.tidy(() => {
+            return tf.browser.fromPixels(canvas)
+              .toFloat()
+              .div(255.0); // 정규화만 수행
+        });
+        
+        xTensors.push(tensor);
+        
+        // 라벨 변환 (One-hot Encoding [14])
+        const row = new Array(14).fill(0);
+        const labelIndex = CHEXPERT_LABELS.indexOf(img.label);
+        if (labelIndex !== -1) {
+            row[labelIndex] = 1;
+        }
+        yLabels.push(row);
+        
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
 
-        return {
-          x: tf.stack(xList),
-          y: tf.tensor2d(yList, [yList.length, 14], 'float32')
-        };
-      };
+      if (xTensors.length > 0) {
+        const xAll = tf.stack(xTensors);
+        const yAll = tf.tensor2d(yLabels, [yLabels.length, 14]);
 
-      const trainTensors = await convertToTensors(trainImages);
-      const testTensors = await convertToTensors(testImages);
-
-      if (trainTensors && testTensors) {
         console.log(`✅ 변환 완료! 메모리 사용량: ${tf.memory().numBytes / 1024 / 1024} MB`);
-        setTrainingData(trainTensors.x, trainTensors.y, testTensors.x, testTensors.y);
+
+        if (xTensors.length === 1) {
+          setTrainingData(xAll, yAll, xAll.clone(), yAll.clone());
+        } else {
+          const testCount = Math.max(1, Math.floor(xTensors.length * 0.2));
+          const trainCount = xTensors.length - testCount;
+          const trainTensors = {
+            x: xAll.slice([0, 0, 0, 0], [trainCount, -1, -1, -1]),
+            y: yAll.slice([0, 0], [trainCount, -1]),
+          };
+          const testTensors = {
+            x: xAll.slice([trainCount, 0, 0, 0], [testCount, -1, -1, -1]),
+            y: yAll.slice([trainCount, 0], [testCount, -1]),
+          };
+
+          setTrainingData(trainTensors.x, trainTensors.y, testTensors.x, testTensors.y);
+        }
         navigate(`/session/${sessionId}/training`);
       }
     } catch (error) {
