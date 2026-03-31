@@ -54,26 +54,24 @@ import { toast } from "sonner@2.0.3";
 // 타입 정의
 interface SignUpRequest {
   id: string;
-  hospitalName: string;
+  userId: string;
   email: string;
-  businessNumber: string;
   phone: string;
   address: string;
-  managerName: string;
   requestDate: string;
   status: "pending" | "approved" | "rejected";
 }
 
 interface Whitelist {
   id: string;
-  hospitalName: string;
+  userId: string;
   emailDomain: string;
   addedDate: string;
 }
 
 interface BlockedHospital {
   id: string;
-  hospitalName: string;
+  userId: string;
   email: string;
   reason: string;
   blockedDate: string;
@@ -81,7 +79,7 @@ interface BlockedHospital {
 
 interface UploadedModel {
   id: string;
-  hospitalName: string;
+  userId: string;
   fileName: string;
   fileSize: string;
   uploadDate: string;
@@ -103,38 +101,34 @@ export function AdminPage() {
   const [signUpRequests, setSignUpRequests] = useState<SignUpRequest[]>([
     {
       id: "REQ001",
-      hospitalName: "고려대학교병원",
+      userId: "user_001",
       email: "admin@kumc.or.kr",
-      businessNumber: "234-56-78901",
       phone: "02-2345-6789",
       address: "서울특별시 성북구",
-      managerName: "김철수",
       requestDate: "2025-10-25",
       status: "pending"
     },
     {
       id: "REQ002",
-      hospitalName: "부산백병원",
+      userId: "user_002",
       email: "contact@paik.ac.kr",
-      businessNumber: "345-67-89012",
       phone: "051-3456-7890",
       address: "부산광역시 진구",
-      managerName: "이영희",
       requestDate: "2025-10-24",
       status: "pending"
     }
   ]);
 
   const [whitelists, setWhitelists] = useState<Whitelist[]>([
-    { id: "WL001", hospitalName: "서울중앙병원", emailDomain: "@central.or.kr", addedDate: "2025-09-15" },
-    { id: "WL002", hospitalName: "연세세브란스병원", emailDomain: "@severance.or.kr", addedDate: "2025-09-16" },
-    { id: "WL003", hospitalName: "삼성서울병원", emailDomain: "@samsung.com", addedDate: "2025-09-17" },
+    { id: "WL001", userId: "user_central", emailDomain: "@central.or.kr", addedDate: "2025-09-15" },
+    { id: "WL002", userId: "user_severance", emailDomain: "@severance.or.kr", addedDate: "2025-09-16" },
+    { id: "WL003", userId: "user_samsung", emailDomain: "@samsung.com", addedDate: "2025-09-17" },
   ]);
 
   const [blockedHospitals, setBlockedHospitals] = useState<BlockedHospital[]>([
     {
       id: "BL001",
-      hospitalName: "테스트병원",
+      userId: "user_test",
       email: "test@test.com",
       reason: "의심스러운 활동 감지",
       blockedDate: "2025-10-20"
@@ -144,7 +138,7 @@ export function AdminPage() {
   const [uploadedModels, setUploadedModels] = useState<UploadedModel[]>([
     {
       id: "MOD001",
-      hospitalName: "서울중앙병원",
+      userId: "user_central",
       fileName: "model_central_v1.h5",
       fileSize: "234 MB",
       uploadDate: "2025-10-23",
@@ -152,7 +146,7 @@ export function AdminPage() {
     },
     {
       id: "MOD002",
-      hospitalName: "연세세브란스병원",
+      userId: "user_severance",
       fileName: "model_severance_v2.h5",
       fileSize: "245 MB",
       uploadDate: "2025-10-22",
@@ -162,7 +156,7 @@ export function AdminPage() {
   ]);
 
   // 화이트리스트 추가 다이얼로그
-  const [newWhitelist, setNewWhitelist] = useState({ hospitalName: "", emailDomain: "" });
+  const [newWhitelist, setNewWhitelist] = useState({ userId: "", emailDomain: "" });
   const [isWhitelistDialogOpen, setIsWhitelistDialogOpen] = useState(false);
 
   // 회원가입 승인/거부
@@ -182,20 +176,20 @@ export function AdminPage() {
 
   // 화이트리스트 관리
   const handleAddWhitelist = () => {
-    if (!newWhitelist.hospitalName || !newWhitelist.emailDomain) {
+    if (!newWhitelist.userId || !newWhitelist.emailDomain) {
       toast.error("모든 필드를 입력해주세요.");
       return;
     }
 
     const newEntry: Whitelist = {
       id: `WL${String(whitelists.length + 1).padStart(3, '0')}`,
-      hospitalName: newWhitelist.hospitalName,
+      userId: newWhitelist.userId,
       emailDomain: newWhitelist.emailDomain,
       addedDate: new Date().toISOString().split('T')[0]
     };
 
     setWhitelists(prev => [...prev, newEntry]);
-    setNewWhitelist({ hospitalName: "", emailDomain: "" });
+    setNewWhitelist({ userId: "", emailDomain: "" });
     setIsWhitelistDialogOpen(false);
     toast.success("화이트리스트에 추가되었습니다.");
   };
@@ -286,10 +280,8 @@ export function AdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>병원명</TableHead>
+                      <TableHead>유저 ID</TableHead>
                       <TableHead>이메일</TableHead>
-                      <TableHead>담당자</TableHead>
-                      <TableHead>사업자번호</TableHead>
                       <TableHead>신청일</TableHead>
                       <TableHead>상태</TableHead>
                       <TableHead className="text-right">액션</TableHead>
@@ -298,15 +290,8 @@ export function AdminPage() {
                   <TableBody>
                     {signUpRequests.map((request) => (
                       <TableRow key={request.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-gray-500" />
-                            {request.hospitalName}
-                          </div>
-                        </TableCell>
+                        <TableCell className="font-mono text-sm">{request.userId}</TableCell>
                         <TableCell>{request.email}</TableCell>
-                        <TableCell>{request.managerName}</TableCell>
-                        <TableCell className="font-mono text-sm">{request.businessNumber}</TableCell>
                         <TableCell>{request.requestDate}</TableCell>
                         <TableCell>{getStatusBadge(request.status)}</TableCell>
                         <TableCell className="text-right">
@@ -362,12 +347,12 @@ export function AdminPage() {
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="space-y-2">
-                        <Label htmlFor="hospital-name">병원명</Label>
+                        <Label htmlFor="user-id">유저 ID</Label>
                         <Input
-                          id="hospital-name"
-                          placeholder="예: 서울대학교병원"
-                          value={newWhitelist.hospitalName}
-                          onChange={(e) => setNewWhitelist(prev => ({ ...prev, hospitalName: e.target.value }))}
+                          id="user-id"
+                          placeholder="예: user_001"
+                          value={newWhitelist.userId}
+                          onChange={(e) => setNewWhitelist(prev => ({ ...prev, userId: e.target.value }))}
                         />
                       </div>
                       <div className="space-y-2">
@@ -404,7 +389,7 @@ export function AdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>병원명</TableHead>
+                      <TableHead>유저 ID</TableHead>
                       <TableHead>이메일 도메인</TableHead>
                       <TableHead>추가일</TableHead>
                       <TableHead className="text-right">액션</TableHead>
@@ -413,12 +398,7 @@ export function AdminPage() {
                   <TableBody>
                     {whitelists.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-gray-500" />
-                            {item.hospitalName}
-                          </div>
-                        </TableCell>
+                        <TableCell className="font-mono text-sm">{item.userId}</TableCell>
                         <TableCell className="font-mono">{item.emailDomain}</TableCell>
                         <TableCell>{item.addedDate}</TableCell>
                         <TableCell className="text-right">
@@ -437,7 +417,7 @@ export function AdminPage() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>정말 삭제하시겠습니까?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  {item.hospitalName}의 화이트리스트 항목이 삭제됩니다. 
+                                  {item.userId}의 화이트리스트 항목이 삭제됩니다.
                                   이 작업은 되돌릴 수 없습니다.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
@@ -474,7 +454,7 @@ export function AdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>병원명</TableHead>
+                      <TableHead>유저 ID</TableHead>
                       <TableHead>이메일</TableHead>
                       <TableHead>차단 사유</TableHead>
                       <TableHead>차단일</TableHead>
@@ -491,12 +471,7 @@ export function AdminPage() {
                     ) : (
                       blockedHospitals.map((hospital) => (
                         <TableRow key={hospital.id}>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Ban className="w-4 h-4 text-red-600" />
-                              {hospital.hospitalName}
-                            </div>
-                          </TableCell>
+                          <TableCell className="font-mono text-sm">{hospital.userId}</TableCell>
                           <TableCell>{hospital.email}</TableCell>
                           <TableCell>{hospital.reason}</TableCell>
                           <TableCell>{hospital.blockedDate}</TableCell>
@@ -516,7 +491,7 @@ export function AdminPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>차단을 해제하시겠습니까?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    {hospital.hospitalName}의 서비스 이용 차단이 해제됩니다.
+                                    {hospital.userId}의 서비스 이용 차단이 해제됩니다.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -553,7 +528,7 @@ export function AdminPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>병원명</TableHead>
+                      <TableHead>유저 ID</TableHead>
                       <TableHead>파일명</TableHead>
                       <TableHead>크기</TableHead>
                       <TableHead>업로드일</TableHead>
@@ -565,12 +540,7 @@ export function AdminPage() {
                   <TableBody>
                     {uploadedModels.map((model) => (
                       <TableRow key={model.id}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Building2 className="w-4 h-4 text-gray-500" />
-                            {model.hospitalName}
-                          </div>
-                        </TableCell>
+                        <TableCell className="font-mono text-sm">{model.userId}</TableCell>
                         <TableCell className="font-mono text-sm">{model.fileName}</TableCell>
                         <TableCell>{model.fileSize}</TableCell>
                         <TableCell>{model.uploadDate}</TableCell>

@@ -36,6 +36,11 @@ function softmax(arr: number[]): number[] {
   return exp.map(x => x / sum);
 }
 
+// T < 1 → 분포가 날카로워져 최댓값 확률이 높아짐 (T=0.3 기준 ~30~60% 범위)
+function softmaxWithTemperature(logits: number[], T = 0.3): number[] {
+  return softmax(logits.map(x => x / T));
+}
+
 // ─── 타입 ───────────────────────────────────────────────────────────────────────
 type ModelType = "chexpert" | "dr";
 type ViewMode  = "1x1" | "2x2" | "3x3";
@@ -211,7 +216,7 @@ export function LabelingAutoPage() {
         input.dispose();
         output.dispose();
 
-        const probs = softmax(logits);
+        const probs = softmaxWithTemperature(logits, 0.3);
         const level = probs.indexOf(Math.max(...probs));
 
         results.push({
