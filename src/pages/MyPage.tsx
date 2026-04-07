@@ -29,7 +29,7 @@ import {
 import { mockContributedModels } from "../data/mockContributedModels";
 
 export function MyPage() {
-  const { hospital, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [contributionHistory] = useState(mockContributedModels);
@@ -45,7 +45,7 @@ export function MyPage() {
     navigate("/");
   };
 
-  if (!hospital) {
+  if (!user) {
     navigate("/login");
     return null;
   }
@@ -79,7 +79,7 @@ export function MyPage() {
               <Building2 className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">병원명</p>
-                <p className="mt-1">{hospital.name}</p>
+                <p className="mt-1">{user.name}</p>
               </div>
             </div>
 
@@ -87,7 +87,7 @@ export function MyPage() {
               <Mail className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">병원 아이디 (이메일)</p>
-                <p className="mt-1">{hospital.email}</p>
+                <p className="mt-1">{user.email}</p>
               </div>
             </div>
 
@@ -95,7 +95,7 @@ export function MyPage() {
               <FileText className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">사업자번호</p>
-                <p className="mt-1">{hospital.businessNumber}</p>
+                <p className="mt-1">{user.businessNumber}</p>
               </div>
             </div>
 
@@ -103,7 +103,7 @@ export function MyPage() {
               <User className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">담당자 이름</p>
-                <p className="mt-1">{hospital.managerName}</p>
+                <p className="mt-1">{user.managerName}</p>
               </div>
             </div>
 
@@ -111,7 +111,7 @@ export function MyPage() {
               <Phone className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">전화번호</p>
-                <p className="mt-1">{hospital.phone}</p>
+                <p className="mt-1">{user.phone}</p>
               </div>
             </div>
 
@@ -119,7 +119,7 @@ export function MyPage() {
               <MapPin className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">주소</p>
-                <p className="mt-1">{hospital.address}</p>
+                <p className="mt-1">{user.address}</p>
               </div>
             </div>
           </div>

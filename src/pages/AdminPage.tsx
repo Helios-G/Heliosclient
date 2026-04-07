@@ -69,7 +69,7 @@ interface Whitelist {
   addedDate: string;
 }
 
-interface BlockedHospital {
+interface BlockedUser {
   id: string;
   userId: string;
   email: string;
@@ -88,7 +88,7 @@ interface UploadedModel {
 }
 
 export function AdminPage() {
-  const { isAdmin, hospital } = useAuth();
+  const { isAdmin, user } = useAuth();
   const navigate = useNavigate();
 
   // 관리자 권한 체크
@@ -125,7 +125,7 @@ export function AdminPage() {
     { id: "WL003", userId: "user_samsung", emailDomain: "@samsung.com", addedDate: "2025-09-17" },
   ]);
 
-  const [blockedHospitals, setBlockedHospitals] = useState<BlockedHospital[]>([
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([
     {
       id: "BL001",
       userId: "user_test",
@@ -200,8 +200,8 @@ export function AdminPage() {
   };
 
   // 병원 차단 해제
-  const handleUnblockHospital = (id: string) => {
-    setBlockedHospitals(prev => prev.filter(item => item.id !== id));
+  const handleUnblockUser = (id: string) => {
+    setBlockedUsers(prev => prev.filter(item => item.id !== id));
     toast.success("차단이 해제되었습니다.");
   };
 
@@ -462,19 +462,19 @@ export function AdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {blockedHospitals.length === 0 ? (
+                    {blockedUsers.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-gray-500">
                           차단된 병원이 없습니다.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      blockedHospitals.map((hospital) => (
-                        <TableRow key={hospital.id}>
-                          <TableCell className="font-mono text-sm">{hospital.userId}</TableCell>
-                          <TableCell>{hospital.email}</TableCell>
-                          <TableCell>{hospital.reason}</TableCell>
-                          <TableCell>{hospital.blockedDate}</TableCell>
+                      blockedUsers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-mono text-sm">{user.userId}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.reason}</TableCell>
+                          <TableCell>{user.blockedDate}</TableCell>
                           <TableCell className="text-right">
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -491,13 +491,13 @@ export function AdminPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>차단을 해제하시겠습니까?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    {hospital.userId}의 서비스 이용 차단이 해제됩니다.
+                                    {user.userId}의 서비스 이용 차단이 해제됩니다.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>취소</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => handleUnblockHospital(hospital.id)}
+                                    onClick={() => handleUnblockUser(user.id)}
                                     style={{ backgroundColor: '#FF9500' }}
                                     className="text-white"
                                   >

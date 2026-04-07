@@ -10,13 +10,13 @@ import { mockDownloadModels } from "../data/mockContributedModels";
 
 export function ModelDownloadPage() {
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
 
   useEffect(() => {
-    if (!hospital) navigate("/login");
-  }, [hospital, navigate]);
+    if (!user) navigate("/login");
+  }, [user, navigate]);
 
-  if (!hospital) return null;
+  if (!user) return null;
 
   return (
     <div className="min-h-screen py-12 px-4 bg-white">

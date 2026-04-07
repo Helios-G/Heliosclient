@@ -7,7 +7,7 @@ import { Card } from "./ui/card";
 export function SignUpPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    hospitalName: "",
+    userName: "",
     email: "",
     password: "",
     businessNumber: ""
@@ -41,15 +41,15 @@ export function SignUpPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* 병원명 */}
             <div className="space-y-2">
-              <label htmlFor="hospitalName" className="block text-sm text-gray-900">
+              <label htmlFor="userName" className="block text-sm text-gray-900">
                 병원명
               </label>
               <Input
-                id="hospitalName"
-                name="hospitalName"
+                id="userName"
+                name="userName"
                 type="text"
                 placeholder="병원명을 입력해주세요."
-                value={formData.hospitalName}
+                value={formData.userName}
                 onChange={handleChange}
                 required
                 className="border-gray-300 focus:border-[#FF9500] focus:ring-[#FF9500]"

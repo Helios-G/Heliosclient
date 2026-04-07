@@ -36,7 +36,7 @@ const CLASSES = [
 
 export function ModelInferencePage() {
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
 
   const [model, setModel] = useState<tf.LayersModel | tf.GraphModel | null>(null);
   const [imageURL, setImageURL] = useState<string | null>(null);
@@ -53,13 +53,13 @@ export function ModelInferencePage() {
   const imageElementRef = useRef<HTMLImageElement>(null);
 
   useEffect(() => {
-    if (!hospital) {
+    if (!user) {
       alert("로그인이 필요한 서비스입니다.");
       navigate("/login");
     }
-  }, [hospital, navigate]);
+  }, [user, navigate]);
 
-  if (!hospital) return null;
+  if (!user) return null;
 
   // 1. 모델 파일 선택 핸들러
   const handleModelFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {

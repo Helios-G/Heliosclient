@@ -20,7 +20,7 @@ import {
 export function ModelDetailPage() {
   const { modelId } = useParams();
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   const modelDetail =
     mockContributedModels.find((item) => item.id === modelId) ||
     mockDownloadModels.find((item) => item.id === modelId);
@@ -29,12 +29,12 @@ export function ModelDetailPage() {
   const pageTitle = modelDetail?.source === "download" ? "모델 상세" : "모델 기여 상세";
 
   useEffect(() => {
-    if (!hospital) {
+    if (!user) {
       navigate("/login");
     }
-  }, [hospital, navigate]);
+  }, [user, navigate]);
 
-  if (!hospital) {
+  if (!user) {
     return null;
   }
 
