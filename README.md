@@ -1,181 +1,221 @@
-
 # HELIOS 🏥
 
-**웹 기반 경량화 의료 연합학습(Federated Learning) 플랫폼**
+병원 대상 연합학습(Federated Learning) 서비스 플랫폼
 
 ## 📖 프로젝트 소개
 
-HELIOS는 고성능 인프라가 없는 중소병원도 웹 브라우저만으로 참여할 수 있는 **실시간 연합학습 플랫폼**입니다.
-**TensorFlow.js**를 활용한 **On-device Learning** 기술을 통해 의료 데이터가 병원 외부로 유출되지 않도록 보호하며, **Python Flower 서버**와 연동하여 다기관 협력 AI 모델을 구축합니다.
+HELIOS는 여러 병원이 데이터를 공유하지 않고도 함께 AI 모델을 학습할 수 있는 연합학습 플랫폼입니다. 의료 데이터의 프라이버시를 보호하면서도 더 정확하고 강력한 AI 모델을 만들 수 있습니다.
 
-### 🎯 핵심 기술 및 특징
+### 🎯 주요 특징
 
-- **🔒 완벽한 프라이버시 (Data Locality)**: 원본 데이터는 브라우저(Local)를 절대 떠나지 않으며, 암호화된 가중치(Weight)만 서버로 전송됩니다.
-- **⚡ Zero-Install 환경**: 별도의 소프트웨어 설치 없이 웹 브라우저 접속만으로 학습에 참여할 수 있습니다.
-- **🤖 Client-side 오토라벨링**: CheXpert로 사전 학습된 경량화 모델(DenseNet121 기반)이 브라우저 내에서 X-ray를 즉시 분석하여 라벨링을 자동화합니다.
-- **🤝 실시간 연합학습**: Python WebSocket 서버와 연동하여 `FedAvg`, `FedAdam` 등의 알고리즘으로 글로벌 모델을 실시간 업데이트합니다.
-- **📊 실시간 대시보드**: 학습 진행 상황(Loss, Accuracy)을 실시간 그래프로 시각화합니다.
+- **프라이버시 보호**: 데이터를 병원 밖으로 내보내지 않음
+- **협력 학습**: 여러 병원이 함께 더 나은 AI 모델 개발
+- **간편한 라벨링**: 자동/수동 라벨링 지원, 폴더 업로드 기능
+- **실시간 모니터링**: 학습 진행 상황을 실시간 그래프로 확인
+- **CheXpert 프리셋**: X-ray 진단을 위한 14개 클래스 자동 설정
+- **관리자 기능**: 회원 승인, 병원 관리, 모델 관리
 
----
+## 🚀 빠른 시작
 
-## 🚀 빠른 시작 (Quick Start)
+### 필요 사항
+- Node.js 18.x 이상
 
-이 프로젝트는 **Backend(Python)**와 **Frontend(React)**를 각각 실행해야 합니다.
+### 설치 및 실행
 
-### 1. 사전 요구사항 (Prerequisites)
-- **Node.js** 18.x 이상
-- **Python** 3.9 이상
-
-### 2. Backend 서버 실행 (Python)
-연합학습을 중개하는 중앙 서버를 먼저 실행합니다.
-
-```bash
-# 서버 폴더로 이동
-cd federated/server
-
-# 가상환경 생성 및 활성화 (권장)
-python -m venv venv
-source venv/bin/activate  # (Windows: venv\Scripts\activate)
-
-# 의존성 설치
-pip install flwr websockets numpy torch torchvision
-
-# 서버 실행 (Port: 8080)
-python simple_server.py
-```
-
-### 3. Frontend 클라이언트 실행 (React)
-사용자 인터페이스 및 학습 엔진을 실행합니다.
-
-```bash
-# 클라이언트 폴더로 이동
-cd Heliosclient
-
-# 의존성 설치
-npm install
-
-# 개발 서버 실행 (Port: 5173)
+**Windows:**
+```cmd
+setup.bat
 npm run dev
 ```
 
-브라우저에서 **http://localhost:5173** 접속
+**Mac/Linux:**
+```bash
+chmod +x setup.sh
+./setup.sh
+npm run dev
+```
 
----
+브라우저에서 http://localhost:5173 접속
 
-## 🎨 기술 스택 (Tech Stack)
+자세한 내용은 [QUICKSTART.md](./QUICKSTART.md)를 참조하세요.
 
-### Frontend & AI Engine
-- **Framework**: React 18, TypeScript, Vite
-- **AI/ML**: **TensorFlow.js** (WebGL Backend)
-- **Styling**: Tailwind CSS, Radix UI
-- **Visualization**: Recharts
+## 🎨 기술 스택
 
-### Backend & Orchestration
-- **Language**: Python 3.9+
-- **FL Framework**: **Flower (Flwr)** (Custom WebSocket Implementation)
-- **Communication**: WebSockets (Asyncio)
-- **Computation**: NumPy, PyTorch (for model conversion)
-
----
+- **Frontend**: React 18, TypeScript
+- **Styling**: Tailwind CSS v4
+- **UI Components**: Radix UI
+- **Charts**: Recharts
+- **Icons**: Lucide React
+- **Build Tool**: Vite
+- **Routing**: React Router v7
 
 ## 📁 프로젝트 구조
 
 ```
-├── public/
-│   └── models/
-│       └── chexpert_tfjs/    # 📂 변환된 TF.js 모델 파일 저장소
-│           ├── model.json    # 모델 구조 (GraphModel)
-│           └── group1-shard* # 모델 가중치 (Binary)
-│
+helios/
 ├── src/
-│   ├── lib/                  # 🧠 핵심 AI 및 통신 로직
-│   │   ├── fl_client.js      # [Core] TF.js 로컬 학습 작업자
-│   │   │                     # - CNN 모델 정의 및 컴파일
-│   │   │                     # - fit(): 로컬 데이터 학습 수행
-│   │   │                     # - evaluate(): 테스트셋 평가
-│   │   └── flwr/             # [Network] Flower 통신 모듈
-│   │       └── index.js      # - WebSocket 연결 및 메시지 파싱
-│   │                         # - 서버 명령(fit, evaluate)을 fl_client에 전달
-│   │
-│   ├── contexts/             # 🌐 전역 상태 관리
-│   │   ├── TrainingDataContext.tsx # 학습용 텐서(Tensor) 데이터 보관함
-│   │   │                           # (이미지 -> Tensor 변환 후 메모리 유지)
-│   │   ├── SessionContext.tsx      # 세션 정보(알고리즘, 클래스 등) 관리
-│   │   └── AuthContext.tsx         # 사용자 로그인 상태 관리
-│   │
-│   ├── pages/                # 🖥️ 화면 구성 (Pages)
-│   │   ├── HomePage.tsx            # 서비스 메인 홈 (대시보드 진입)
-│   │   ├── LoginPage.tsx           # 사용자 로그인
-│   │   ├── SignUpPage.tsx          # 회원가입
-│   │   ├── MyPage.tsx              # 사용자 정보 및 참여 이력 관리
-│   │   │
-│   │   ├── SessionListPage.tsx     # 참여 가능한 연합학습 세션 목록 조회
-│   │   ├── SessionCreatePage.tsx   # 세션 생성 (알고리즘, 데이터셋, 클래스 설정)
-│   │   ├── SessionDetailPage.tsx   # 세션 상세 정보 확인
-│   │   ├── SessionJoinPage.tsx     # 세션 참여 방식(자동/수동) 선택
-│   │   │
-│   │   ├── LabelingAutoPage.tsx    # [AI] 자동 라벨링 (Canvas 최적화 적용)
-│   │   │                           # - 320x320 리사이징 및 추론 수행
-│   │   ├── LabelingManualPage.tsx  # [AI] 수동 검수 및 데이터 변환
-│   │   │                           # - Train/Test(8:2) 분할 및 텐서 생성
-│   │   │
-│   │   ├── SessionTrainingPage.tsx # [FL] 실시간 연합학습 대시보드
-│   │   │                           # - 실시간 Loss/Acc 그래프 시각화
-│   │   ├── SessionResultsPage.tsx  # 학습 결과 리포트 및 성능 지표 확인
-│   │   │
-│   │   ├── ModelDownloadPage.tsx   # 학습 완료된 모델 목록 및 다운로드
-│   │   ├── ModelDetailPage.tsx     # 모델 상세 스펙 확인
-│   │   ├── AdminPage.tsx           # 관리자 전용 페이지 (승인/관리)
-│   │   └── NotFoundPage.tsx        # 404 에러 페이지
-│   │
-│   ├── components/           # 🧩 UI 컴포넌트
-│   │   ├── ui/               # 버튼, 카드, 입력창 등 (Re-usable)
-│   │   └── Layout.tsx        # 헤더/푸터를 포함한 공통 레이아웃
-│   │
-│   ├── App.tsx               # 라우팅(Routing) 및 Context Provider 설정
-│   └── main.tsx              # React 앱 진입점
-│
-├── package.json              # 의존성 관리 (@tensorflow/tfjs, recharts 등)
-└── vite.config.ts            # Vite 빌드 설정
+│   └── main.tsx              # 앱 진입점
+├── App.tsx                   # 메인 App 컴포넌트, 라우팅
+├── components/               # 재사용 가능한 컴포넌트
+│   ├── Header.tsx
+│   ├── Footer.tsx
+│   ├── Layout.tsx
+│   └── ui/                   # UI 컴포넌트 라이브러리
+├── pages/                    # 페이지 컴포넌트
+│   ├── HomePage.tsx          # 메인 페이지
+│   ├── SignUpPage.tsx        # 회원가입
+│   ├── LoginPage.tsx         # 로그인
+│   ├── SessionListPage.tsx   # 세션 목록
+│   ├── SessionCreatePage.tsx # 세션 생성 (CheXpert 프리셋!)
+│   ├── SessionJoinPage.tsx   # 세션 참여
+│   ├── LabelingAutoPage.tsx  # 자동 라벨링
+│   ├── LabelingManualPage.tsx # 수동 라벨링 (폴더 업로드!)
+│   ├── SessionTrainingPage.tsx # 학습 진행
+│   ├── SessionResultsPage.tsx  # 학습 결과
+│   ├── ModelDownloadPage.tsx   # 모델 다운로드
+│   ├── ModelDetailPage.tsx     # 모델 상세
+│   ├── MyPage.tsx             # 회원 정보
+│   └── AdminPage.tsx          # 관리자 페이지
+├── contexts/
+│   └── AuthContext.tsx       # 인증 컨텍스트
+├── styles/
+│   └── globals.css          # 전역 스타일
+└── package.json
 ```
 
----
+## 🔑 테스트 계정
 
-## 💡 주요 기능 시연
+### 일반 병원 계정
+```
+이메일: test@hospital.com
+비밀번호: (아무거나)
+```
 
-### 1. 세션 생성 및 알고리즘 선택
-- 학습 목표에 따라 **FedAvg** (기본) 또는 **FedAdam** (Non-IID 특화) 알고리즘을 선택하여 세션을 생성할 수 있습니다.
-- CheXpert 기준 14개 질환 클래스를 자동으로 설정하는 프리셋을 제공합니다.
+### 관리자 계정
+```
+이메일: admin@helios.com
+비밀번호: (아무거나)
+```
 
-### 2. 하이브리드 라벨링 (Auto + Manual)
-- **자동 라벨링**: 이미지를 업로드하면 브라우저 내장 AI가 320x320 해상도로 분석하여 즉시 라벨을 제안합니다.
-- **수동 검수**: 의료진이 AI의 결과를 확인하고 수정할 수 있으며, 확정된 데이터는 학습용 텐서(Tensor)로 변환됩니다.
+## 💡 주요 기능
 
-### 3. 웹 기반 연합학습 (Web-FL)
-- **데이터 파이프라인**: 이미지(Canvas) → 텐서 변환(224x224) → 정규화 → 배치 처리.
-- **학습 프로세스**:
-  1. 서버로부터 글로벌 가중치 수신
-  2. 브라우저(GPU)에서 로컬 데이터로 학습 수행
-  3. 갱신된 가중치를 서버로 전송
-  4. 실시간 Loss/Accuracy 그래프 업데이트
+### 1. 회원가입 / 로그인
+- 심플하고 깔끔한 UI
+- 병원명, 이메일, 비밀번호, 사업자번호 입력
+- 관리자 승인 후 이용 가능
 
-### 4. 결과 분석 및 모델 활용
-- 학습이 완료되면 최종 정확도와 손실 값을 확인하고, 학습된 모델을 다운로드하여 활용할 수 있습니다.
+### 2. 세션 생성
+- 데이터 형식 선택 (X-ray, CT, MRI 등)
+- 질환 클래스 설정
+- **🆕 CheXpert 프리셋**: 버튼 클릭으로 14개 클래스 자동 설정
+  - 특이사항 없음, 심장종격동 비대, 심장비대증, 폐 혼탁, 폐 병변
+  - 폐부종, 폐경화, 폐렴, 무기폐, 기흉, 흉수
+  - 기타 흉막 질환, 골절, 의료 보조 장치
 
----
+### 3. 학습 참여
+- **자동 라벨링**: AI가 자동으로 라벨 지정
+- **수동 라벨링**: 
+  - 🆕 버튼 클릭으로 빠른 라벨링
+  - 🆕 폴더 업로드 기능 (파일 하나하나 선택 불필요)
+  - 이미지 미리보기
 
-## ⚠️ 실행 시 주의사항
+### 4. 학습 모니터링
+- 실시간 정확도 및 손실 그래프
+- 참여 병원 현황
+- 라운드별 진행 상황
 
-1. **브라우저 호환성**: WebGL 가속을 위해 **Chrome** 또는 **Edge** 브라우저 사용을 권장합니다.
-2. **메모리 관리**: 대량의 이미지(100장 이상) 학습 시 브라우저 메모리 보호를 위해 배치 단위 처리가 적용되어 있습니다.
-3. **서버 연결**: `[연합학습 시작]` 버튼을 누르기 전에 반드시 **Python 서버(`simple_server.py`)**가 켜져 있어야 합니다.
+### 5. 모델 다운로드
+- 학습된 모델 다운로드
+- CSV 라벨링 결과 다운로드
+- 상세한 모델 정보 (구조, 성능, 참여 기관 등)
 
----
+### 6. 관리자 페이지
+- 회원가입 승인/거부
+- 병원 화이트리스트 관리
+- 병원 차단
+- 업로드된 모델 관리
+
+## 🎨 브랜드 컬러
+
+- Primary: `#FF9500` (오렌지)
+- Secondary: `#6B3131` (브라운)
+
+## ⚠️ 중요 안내
+
+이 프로젝트는 **프론트엔드 데모**입니다:
+
+- ❌ 실제 백엔드 서버 없음
+- ❌ 실제 파일 업로드/저장 없음
+- ❌ 데이터베이스 없음 (새로고침 시 초기화)
+- ✅ UI/UX 및 워크플로우 시연용
+- ✅ 모든 기능 시뮬레이션 가능
+
+## 📦 빌드
+
+프로덕션 빌드:
+```bash
+npm run build
+```
+
+빌드 미리보기:
+```bash
+npm run preview
+```
+
+## 🔧 개발 명령어
+
+```bash
+# 개발 서버 실행
+npm run dev
+
+# 프로덕션 빌드
+npm run build
+
+# 빌드 미리보기
+npm run preview
+
+# 코드 린팅
+npm run lint
+```
+
+## 🌐 브라우저 지원
+
+- Chrome 90+
+- Firefox 88+
+- Safari 14+
+- Edge 90+
+
+**권장**: 폴더 업로드 기능은 Chrome, Edge에서 가장 잘 작동합니다.
+
+## 📚 문서
+
+- [QUICKSTART.md](./QUICKSTART.md) - 빠른 시작 가이드
+- [LOCAL_SETUP.md](./LOCAL_SETUP.md) - 상세 설치 가이드
+
+## 🎓 학습 워크플로우
+
+1. 회원가입 → 관리자 승인 대기
+2. 세션 생성 (CheXpert 프리셋 사용 가능)
+3. 다른 병원들이 세션 참여
+4. 각 병원에서 데이터 라벨링 (자동/수동)
+5. 연합학습 시작
+6. 실시간 학습 진행 상황 모니터링
+7. 학습 완료 후 모델 다운로드
+
+## 🎯 향후 계획
+
+- [ ] 실제 백엔드 연동
+- [ ] 실제 연합학습 알고리즘 구현
+- [ ] 더 많은 의료 데이터 형식 지원
+- [ ] 모바일 반응형 개선
+- [ ] 다국어 지원
 
 ## 📄 라이선스
 
-이 프로젝트는 교육 및 연구 목적으로 제작되었습니다.
+이 프로젝트는 교육 및 데모 목적으로 제작되었습니다.
 
 ---
 
-**HELIOS Team** - Connecting Hospitals, Empowering AI 🏥✨
+**HELIOS** - 연합학습으로 더 나은 의료 AI를 만듭니다 🏥✨
+
+문의: helios@example.com
