@@ -9,6 +9,13 @@ interface FinalMetrics {
   endTime: string;
 }
 
+interface ScreeningMeta {
+  expectedDomain: string;
+  detectedDomain: string;
+  domainScore: number;
+  sampleCount: number;
+}
+
 interface TrainingDataContextType {
   // ✅ Train 데이터
   xTrain: tf.Tensor | null;
@@ -19,6 +26,8 @@ interface TrainingDataContextType {
   
   // ✅ 함수 인자도 4개로 변경
   setTrainingData: (xTr: tf.Tensor, yTr: tf.Tensor, xTe: tf.Tensor, yTe: tf.Tensor) => void;
+  screeningMeta: ScreeningMeta | null;
+  setScreeningMeta: (meta: ScreeningMeta | null) => void;
   
   finalMetrics: FinalMetrics | null;
   setFinalMetrics: (metrics: FinalMetrics) => void;
@@ -33,6 +42,7 @@ export function TrainingDataProvider({ children }: { children: React.ReactNode }
   // ✅ Test 데이터 상태 추가
   const [xTest, setXTest] = useState<tf.Tensor | null>(null);
   const [yTest, setYTest] = useState<tf.Tensor | null>(null);
+  const [screeningMeta, setScreeningMeta] = useState<ScreeningMeta | null>(null);
   
   const [finalMetrics, setFinalMetrics] = useState<FinalMetrics | null>(null);
 
@@ -46,7 +56,8 @@ export function TrainingDataProvider({ children }: { children: React.ReactNode }
 
   return (
     <TrainingDataContext.Provider value={{ 
-        xTrain, yTrain, xTest, yTest, setTrainingData, // ✅ xTest, yTest 내보내기
+        xTrain, yTrain, xTest, yTest, setTrainingData,
+        screeningMeta, setScreeningMeta,
         finalMetrics, setFinalMetrics 
     }}>
       {children}

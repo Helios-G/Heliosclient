@@ -127,12 +127,18 @@ export function SessionJoinPage() {
   const maxParticipants = session.maxParticipants || session.memberCount || 5;
   const dataFormat = session.dataFormat || session.dataType || "X-ray";
 
-  // URL 파라미터에서 userId 추출 (테스트용), 없으면 user.id, 그것도 없으면 1
+  // URL 파라미터 우선 허용, 없으면 로그인 사용자 ID 사용
   const urlParams = new URLSearchParams(window.location.search);
-  const userId = urlParams.get('userId') || user?.id || 1;
+  const userId = urlParams.get('userId') || user?.id?.toString();
 
   // 세션 참여 신청 후 라벨링 페이지로 이동
   const handleJoin = async (type: 'auto' | 'manual') => {
+    if (!userId) {
+      alert("로그인 사용자 정보를 확인할 수 없습니다. 다시 로그인해주세요.");
+      navigate("/login");
+      return;
+    }
+
     try {
       const res = await authFetch(`/sessions/${sessionId}/join?userId=${userId}`, {
         method: "POST"

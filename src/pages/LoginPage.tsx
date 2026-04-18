@@ -4,6 +4,20 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { authFetch } from "../lib/authFetch";
+
+interface LoginResponse {
+  grantType: string;
+  accessToken: string;
+  userId: number;
+}
+
+interface MyInfoResponse {
+  name: string;
+  email: string;
+  roleId: number;
+  roleName: string;
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -12,28 +26,55 @@ export function LoginPage() {
     email: "",
     password: ""
   });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 실제로는 API 호출하여 인증
-    // 여기서는 테스트를 위해 임시 데이터 사용
-    // admin@helios.com으로 로그인하면 관리자 권한 부여
-    const isAdminUser = formData.email === "admin@helios.com";
-    
-    const mockUserData = {
-      id: isAdminUser ? 0 : 1,
-      name: isAdminUser ? "HELIOS 관리자" : "서울중앙병원",
-      email: formData.email,
-      businessNumber: "123-45-67890",
-      phone: "02-1234-5678",
-      address: "서울특별시 강남구 테헤란로 123",
-      managerName: isAdminUser ? "시스템 관리자" : "홍길동",
-      isAdmin: isAdminUser
-    };
 
-    login(mockUserData);
-    navigate("/");
+    try {
+      setIsSubmitting(true);
+      setErrorMessage("");
+
+      const loginResponse = await authFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify(formData),
+      });
+
+      if (!loginResponse.ok) {
+        const errorText = await loginResponse.text();
+        throw new Error(errorText || "로그인에 실패했습니다.");
+      }
+
+      const tokenData = (await loginResponse.json()) as LoginResponse;
+      localStorage.setItem("accessToken", tokenData.accessToken);
+
+      const myInfoResponse = await authFetch("/users/me");
+      if (!myInfoResponse.ok) {
+        throw new Error("사용자 정보를 불러오지 못했습니다.");
+      }
+
+      const myInfo = (await myInfoResponse.json()) as MyInfoResponse;
+      const userData = {
+        id: tokenData.userId,
+        name: myInfo.name,
+        email: myInfo.email,
+        businessNumber: "",
+        phone: "",
+        address: "",
+        managerName: myInfo.name,
+        isAdmin: myInfo.roleName === "ROLE_ADMIN",
+      };
+
+      login(userData);
+      navigate("/");
+    } catch (error) {
+      localStorage.removeItem("accessToken");
+      const message = error instanceof Error ? error.message : "로그인 중 오류가 발생했습니다.";
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,13 +125,18 @@ export function LoginPage() {
               <p className="text-xs text-gray-500">비밀번호를 다시 확인해주세요.</p>
             </div>
 
+            {errorMessage && (
+              <p className="text-sm text-red-600">{errorMessage}</p>
+            )}
+
             {/* 로그인 버튼 */}
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="w-full py-6 text-white rounded-lg hover:opacity-90"
               style={{ backgroundColor: '#FF9500' }}
             >
-              로그인
+              {isSubmitting ? "로그인 중..." : "로그인"}
             </Button>
           </form>
         </Card>
