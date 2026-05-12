@@ -21,6 +21,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 
 // ✅ [추가됨] 이 줄이 빠져서 에러가 났던 겁니다!
 import { ModelInferencePage } from "./pages/ModelInferencePage";
+import { ModelInferenceReportPage } from "./pages/ModelInferenceReportPage";
 
 import { TrainingDataProvider } from "./contexts/TrainingDataContext";
 import { SessionProvider } from "./contexts/SessionContext";
@@ -58,6 +59,7 @@ export default function App() {
 
                 {/* ✅ AI 진단실 (Playground) */}
                 <Route path="/playground" element={<ModelInferencePage />} />
+                <Route path="/playground/report" element={<ModelInferenceReportPage />} />
                 
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>

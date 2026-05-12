@@ -26,6 +26,18 @@ export function ModelDownloadPage() {
           <p className="text-gray-600">
             연합학습을 통해 검증된 고성능 의료 AI 모델을 다운로드하여 활용하세요.
           </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button
+              onClick={() => navigate("/playground")}
+              style={{ backgroundColor: "#6B3131" }}
+              className="text-white hover:opacity-90"
+            >
+              AI 진단실에서 바로 사용하기
+            </Button>
+            <p className="self-center text-sm text-gray-500">
+              브라우저 지원 모델은 파일 다운로드 없이 진단실에서 바로 자동 로드됩니다.
+            </p>
+          </div>
         </div>
 
         <div className="grid gap-6">
