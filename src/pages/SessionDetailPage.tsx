@@ -29,22 +29,22 @@ interface SessionDetail {
   currentRound?: number;
   description: string;
   createdBy: string;
-  participatingHospitals: string[];
+  participatingUsers: string[];
 }
 
 export function SessionDetailPage() {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
 
   // 로그인 체크
   useEffect(() => {
-    if (!hospital) {
+    if (!user) {
       navigate("/login");
     }
-  }, [hospital, navigate]);
+  }, [user, navigate]);
 
-  if (!hospital) {
+  if (!user) {
     return null;
   }
 
@@ -79,7 +79,7 @@ export function SessionDetailPage() {
         description:
           "CheXpert 데이터셋을 기반으로 한 14개 클래스 흉부 X-ray 질환 분류 학습 세션입니다. 여러 병원의 데이터를 활용하여 정확도 높은 진단 AI를 개발합니다.",
         createdBy: "서울대병원",
-        participatingHospitals: ["서울대병원", "연세대병원"],
+        participatingUsers: ["서울대병원", "연세대병원"],
       },
       "2": {
         id: "2",
@@ -96,7 +96,7 @@ export function SessionDetailPage() {
         description:
           "유방 촬영 영상을 통한 조기 유방암 진단 AI 모델 개발 세션입니다.",
         createdBy: "고려대병원",
-        participatingHospitals: [
+        participatingUsers: [
           "고려대병원",
           "아산병원",
           "삼성서울병원",
@@ -126,7 +126,7 @@ export function SessionDetailPage() {
         description:
           "피부경 이미지를 활용한 피부암 분류 모델 학습 세션입니다.",
         createdBy: "분당서울대병원",
-        participatingHospitals: [
+        participatingUsers: [
           "분당서울대병원",
           "강남세브란스",
           "서울성모병원",
@@ -148,7 +148,7 @@ export function SessionDetailPage() {
         rounds: 0,
         description: "세션 정보를 찾을 수 없습니다.",
         createdBy: "Unknown",
-        participatingHospitals: [],
+        participatingUsers: [],
       }
     );
   };
@@ -291,7 +291,7 @@ export function SessionDetailPage() {
                 참여 중인 병원
               </h3>
               <div className="space-y-2">
-                {session.participatingHospitals.map((hosp, index) => (
+                {session.participatingUsers.map((hosp, index) => (
                   <div
                     key={index}
                     className="flex items-center gap-2 p-3 rounded-lg"

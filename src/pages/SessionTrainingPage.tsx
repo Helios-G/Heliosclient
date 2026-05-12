@@ -14,7 +14,7 @@ import { useTrainingData } from "../contexts/TrainingDataContext";
 import { useSession } from "../contexts/SessionContext";
 import { authFetch } from "../lib/authFetch";
 
-type TrainingStatus = "preparing" | "training" | "completed";
+type TrainingStatus = "preparing" | "training" | "waiting" | "completed";
 
 interface TrainingData {
   round: number;
@@ -26,26 +26,28 @@ export function SessionTrainingPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
-  // ✅ 4개 데이터 모두 가져오기
+
   const { xTrain, yTrain, xTest, yTest, setFinalMetrics } = useTrainingData();
   const { getSession, upsertSession } = useSession();
-  
+
   const session = getSession(sessionId || "");
   const [sessionMeta, setSessionMeta] = useState(session);
-  
+
   const [status, setStatus] = useState<TrainingStatus>("preparing");
   const [trainingData, setTrainingData] = useState<TrainingData[]>([]);
   const [currentRound, setCurrentRound] = useState(0);
   const [totalRounds, setTotalRounds] = useState(session?.rounds || 5);
   const [logMessage, setLogMessage] = useState("서버 연결 대기 중...");
-  
+  const [currentParticipants, setCurrentParticipants] = useState(0);
+  const [targetParticipants, setTargetParticipants] = useState(0);
+
   const [startTime] = useState(new Date().toLocaleString());
   const lastMetricsRef = useRef({ acc: 0, loss: 0 });
   const currentRoundRef = useRef(0);
 
   useEffect(() => {
-    if (!user) navigate("/login");
+    const params = new URLSearchParams(window.location.search);
+    if (!user && !params.get("hId")) navigate("/login");
   }, [user, navigate]);
 
   useEffect(() => {
@@ -80,6 +82,9 @@ export function SessionTrainingPage() {
         } as const;
 
         setSessionMeta(normalizedSession);
+        setCurrentParticipants(normalizedSession.participants);
+        setTargetParticipants(normalizedSession.targetParticipants);
+
         const currentLocal = getSession(normalizedSession.id);
         if (JSON.stringify(currentLocal) !== JSON.stringify(normalizedSession)) {
           upsertSession(normalizedSession);
@@ -96,30 +101,29 @@ export function SessionTrainingPage() {
   if (!user) return null;
 
   const startTraining = async () => {
-    // 🔍 데이터 확인 로그
-    console.log("📦 Context 데이터 확인:", { 
-        xTrain: xTrain?.shape, 
-        yTrain: yTrain?.shape, 
-        xTest: xTest?.shape, 
-        yTest: yTest?.shape 
+    console.log("📦 Context 데이터 확인:", {
+      xTrain: xTrain?.shape,
+      yTrain: yTrain?.shape,
+      xTest: xTest?.shape,
+      yTest: yTest?.shape,
     });
 
-    // ✅ [수정] Train과 Test가 모두 있어야만 시작! (엄격한 검사)
     if (!xTrain || !yTrain || !xTest || !yTest) {
-        alert("학습 또는 테스트 데이터가 누락되었습니다.\n라벨링 페이지에서 데이터를 다시 로드해주세요.");
-        // 데이터가 없으면 다시 라벨링 페이지로
-        navigate(`/session/${sessionId}/labeling/auto`); 
-        return;
+      alert("학습 또는 테스트 데이터가 누락되었습니다.\n라벨링 페이지에서 데이터를 다시 로드해주세요.");
+      navigate(`/session/${sessionId}/labeling/auto`);
+      return;
     }
 
-    setStatus("training");
-    setLogMessage("연합학습 서버(ws://localhost:8000)에 연결 시도 중...");
+    setStatus("waiting");
+    setLogMessage("다른 참여자를 기다리는 중...");
 
     try {
       const client = new MyFlowerClient();
       const flwr = new Flwr();
 
       flwr.setStatusCallback((message: { currentRound?: number; totalRounds?: number; progress?: number }) => {
+        // 첫 라운드 시작되면 waiting -> training 으로 전환
+        setStatus("training");
         const nextRound = message.currentRound || 0;
         currentRoundRef.current = nextRound;
         setCurrentRound(nextRound);
@@ -151,14 +155,14 @@ export function SessionTrainingPage() {
 
       console.log("💉 Train/Test 데이터를 클라이언트에 주입합니다.");
       client.addData(xTrain, yTrain, xTest, yTest);
-      
-      const userToken = user?.id?.toString() || "1"; 
+
+      const userToken = user?.id?.toString() || "1";
       const algo = sessionMeta?.algorithm || session?.algorithm || "FedAvg";
 
       const urlParams = new URLSearchParams(window.location.search);
-      const mockId = urlParams.get('hId') || user?.id?.toString() || "1";
+      const mockId = urlParams.get("hId") || user?.id?.toString() || "1";
 
-      const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}&userId=${mockId}`;
+      const wsUrl = `ws://localhost:8080/ws/fl/${sessionId}/${userToken}?algo=${algo}&userId=${mockId}`;
 
       console.log(`🔗 웹소켓 연결 시도 (사용자ID: ${mockId}): ${wsUrl}`);
       await flwr.connect(wsUrl, client);
@@ -168,25 +172,24 @@ export function SessionTrainingPage() {
         loss: lastMetricsRef.current.loss,
         rounds: totalRounds,
         startTime: startTime,
-        endTime: new Date().toLocaleString()
+        endTime: new Date().toLocaleString(),
       };
 
       if (setFinalMetrics) {
-          setFinalMetrics(finalResult);
-          localStorage.setItem("session_result", JSON.stringify(finalResult));
-          console.log("💾 결과 데이터 저장 완료:", finalResult);
+        setFinalMetrics(finalResult);
+        localStorage.setItem("session_result", JSON.stringify(finalResult));
+        console.log("💾 결과 데이터 저장 완료:", finalResult);
       }
 
       setStatus("completed");
       setLogMessage("모든 학습 라운드가 완료되었습니다. 결과 페이지로 이동합니다...");
-      
-      setTimeout(() => {
-        navigate(`/session/${sessionId}/results`); 
-      }, 3000);
 
+      setTimeout(() => {
+        navigate(`/session/${sessionId}/results`);
+      }, 3000);
     } catch (err) {
       console.error(err);
-      setLogMessage("❌ 서버 연결 실패! (파이썬 서버가 8000번 포트로 켜져있나요?)");
+      setLogMessage("❌ 서버 연결 실패! (파이썬 서버가 8080번 포트로 켜져있나요?)");
       setTimeout(() => setStatus("preparing"), 3000);
     }
   };
@@ -201,6 +204,7 @@ export function SessionTrainingPage() {
         <div className="mb-12">
           <h1 className="text-gray-800 text-2xl font-bold">
             {status === "preparing" && "학습 준비"}
+            {status === "waiting" && "참여자 대기 중"}
             {status === "training" && "실시간 연합학습 진행 중 (Real-time)"}
             {status === "completed" && "학습 완료"}
           </h1>
@@ -209,20 +213,30 @@ export function SessionTrainingPage() {
 
         {status === "preparing" && (
           <div className="space-y-6">
-            <Card className="p-8 border-2" style={{ backgroundColor: '#FFF9F5' }}>
-              <h3 className="mb-4 text-xl font-bold" style={{ color: '#6B3131' }}>학습 준비 완료</h3>
+            <Card className="p-8 border-2" style={{ backgroundColor: "#FFF9F5" }}>
+              <h3 className="mb-4 text-xl font-bold" style={{ color: "#6B3131" }}>
+                학습 준비 완료
+              </h3>
               <div className="space-y-2 text-gray-700">
                 <p>• 데이터 전처리 및 오토라벨링이 완료되었습니다.</p>
-                {/* 데이터 상태 표시 (Test 데이터 유무도 확인) */}
-                <p>• 학습 데이터 상태: {xTrain && xTest ? <span className="text-green-600 font-bold">준비됨 (Train/Test Split OK)</span> : <span className="text-red-500 font-bold">없음 (다시 로드 필요)</span>}</p>
-                <p>• <strong>Python 서버(port 8000)</strong>가 켜져 있는지 확인해주세요.</p>
+                <p>
+                  • 학습 데이터 상태:{" "}
+                  {xTrain && xTest ? (
+                    <span className="text-green-600 font-bold">준비됨 (Train/Test Split OK)</span>
+                  ) : (
+                    <span className="text-red-500 font-bold">없음 (다시 로드 필요)</span>
+                  )}
+                </p>
+                <p>
+                  • <strong>Python 서버(port 8080)</strong>가 켜져 있는지 확인해주세요.
+                </p>
                 <p>• 아래 버튼을 누르면 실제 연합학습이 시작됩니다.</p>
               </div>
             </Card>
 
             <div className="flex justify-center">
               <Button
-                style={{ backgroundColor: '#6B3131' }}
+                style={{ backgroundColor: "#6B3131" }}
                 className="text-white hover:opacity-90 px-12 py-8 text-lg font-bold rounded-xl shadow-lg transition-transform hover:scale-105"
                 onClick={startTraining}
               >
@@ -232,13 +246,36 @@ export function SessionTrainingPage() {
           </div>
         )}
 
-        {/* ... 나머지 차트 및 완료 UI는 동일 ... */}
+        {status === "waiting" && (
+          <div className="space-y-6">
+            <Card className="p-8 border-2" style={{ backgroundColor: "#FFF9F5" }}>
+              <div className="text-center space-y-4">
+                <div className="text-5xl animate-pulse">⏳</div>
+                <h3 className="text-xl font-bold" style={{ color: "#6B3131" }}>
+                  다른 참여자를 기다리는 중...
+                </h3>
+                <p className="text-gray-600">
+                  현재 참여자:{" "}
+                  <span className="font-bold text-orange-500">
+                    {currentParticipants} / {targetParticipants}명
+                  </span>
+                </p>
+                <p className="text-gray-500 text-sm">
+                  목표 인원이 모이면 자동으로 학습이 시작됩니다.
+                </p>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {status === "training" && (
           <div className="space-y-8">
             <Card className="p-8 border-2 shadow-md">
               <div className="mb-6 flex justify-between items-center">
                 <div>
-                  <h3 className="mb-2 text-xl font-bold" style={{ color: '#6B3131' }}>현재 Round: {currentRound}</h3>
+                  <h3 className="mb-2 text-xl font-bold" style={{ color: "#6B3131" }}>
+                    현재 Round: {currentRound}
+                  </h3>
                   <p className="text-sm text-gray-500">총 {totalRounds} 라운드</p>
                   <p className="text-gray-600">서버와 통신하며 모델을 학습시키고 있습니다...</p>
                 </div>
@@ -248,38 +285,58 @@ export function SessionTrainingPage() {
               </div>
 
               <div className="mb-8">
-                <h4 className="mb-4 font-semibold" style={{ color: '#6B3131' }}>정확도 (Accuracy)</h4>
+                <h4 className="mb-4 font-semibold" style={{ color: "#6B3131" }}>
+                  정확도 (Accuracy)
+                </h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={trainingData} margin={{ top: 5, right: 30, left: 20, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="round" 
-                      label={{ value: 'Round', position: 'insideBottom', offset: -15 }} 
-                      domain={[1, 'auto']} 
-                      allowDecimals={false} 
+                    <XAxis
+                      dataKey="round"
+                      label={{ value: "Round", position: "insideBottom", offset: -15 }}
+                      domain={[1, "auto"]}
+                      allowDecimals={false}
                     />
-                    <YAxis domain={[0, 1]} label={{ value: 'Accuracy', angle: -90, position: 'insideLeft' }} />
+                    <YAxis domain={[0, 1]} label={{ value: "Accuracy", angle: -90, position: "insideLeft" }} />
                     <Tooltip />
-                    <Legend verticalAlign="top" height={36}/>
-                    <Line type="monotone" dataKey="accuracy" stroke="#FF9500" strokeWidth={3} name="정확도" dot={{ fill: '#FF9500', r: 4 }} isAnimationActive={false} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      type="monotone"
+                      dataKey="accuracy"
+                      stroke="#FF9500"
+                      strokeWidth={3}
+                      name="정확도"
+                      dot={{ fill: "#FF9500", r: 4 }}
+                      isAnimationActive={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
               <div>
-                <h4 className="mb-4 font-semibold" style={{ color: '#6B3131' }}>손실 (Loss)</h4>
+                <h4 className="mb-4 font-semibold" style={{ color: "#6B3131" }}>
+                  손실 (Loss)
+                </h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={trainingData} margin={{ top: 5, right: 30, left: 20, bottom: 25 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="round" 
-                      label={{ value: 'Round', position: 'insideBottom', offset: -15 }} 
+                    <XAxis
+                      dataKey="round"
+                      label={{ value: "Round", position: "insideBottom", offset: -15 }}
                       allowDecimals={false}
                     />
-                    <YAxis label={{ value: 'Loss', angle: -90, position: 'insideLeft' }} />
+                    <YAxis label={{ value: "Loss", angle: -90, position: "insideLeft" }} />
                     <Tooltip />
-                    <Legend verticalAlign="top" height={36}/>
-                    <Line type="monotone" dataKey="loss" stroke="#6B3131" strokeWidth={3} name="손실" dot={{ fill: '#6B3131', r: 4 }} isAnimationActive={false} />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line
+                      type="monotone"
+                      dataKey="loss"
+                      stroke="#6B3131"
+                      strokeWidth={3}
+                      name="손실"
+                      dot={{ fill: "#6B3131", r: 4 }}
+                      isAnimationActive={false}
+                    />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -289,7 +346,7 @@ export function SessionTrainingPage() {
 
         {status === "completed" && (
           <div className="space-y-6">
-            <Card className="p-8 border-2 border-green-200" style={{ backgroundColor: '#F0FDF4' }}>
+            <Card className="p-8 border-2 border-green-200" style={{ backgroundColor: "#F0FDF4" }}>
               <div className="text-center">
                 <div className="text-5xl mb-4">🎉</div>
                 <h3 className="mb-2 text-2xl font-bold text-green-800">연합학습 완료!</h3>
@@ -297,8 +354,16 @@ export function SessionTrainingPage() {
               </div>
             </Card>
             <div className="flex justify-center gap-4">
-              <Button variant="outline" onClick={() => navigate('/session/list')} className="px-8 py-6">세션 목록으로</Button>
-              <Button style={{ backgroundColor: '#FF9500' }} className="text-white hover:opacity-90 px-12 py-6 font-bold" onClick={viewResults}>결과 상세 리포트 보기</Button>
+              <Button variant="outline" onClick={() => navigate("/session/list")} className="px-8 py-6">
+                세션 목록으로
+              </Button>
+              <Button
+                style={{ backgroundColor: "#FF9500" }}
+                className="text-white hover:opacity-90 px-12 py-6 font-bold"
+                onClick={viewResults}
+              >
+                결과 상세 리포트 보기
+              </Button>
             </div>
           </div>
         )}

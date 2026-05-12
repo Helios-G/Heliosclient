@@ -69,7 +69,7 @@ interface Whitelist {
   addedDate: string;
 }
 
-interface BlockedHospital {
+interface BlockedUser {
   id: string;
   userId: string;
   email: string;
@@ -88,7 +88,7 @@ interface UploadedModel {
 }
 
 export function AdminPage() {
-  const { isAdmin, hospital } = useAuth();
+  const { isAdmin, user } = useAuth();
   const navigate = useNavigate();
 
   // 관리자 권한 체크
@@ -125,7 +125,7 @@ export function AdminPage() {
     { id: "WL003", userId: "user_samsung", emailDomain: "@samsung.com", addedDate: "2025-09-17" },
   ]);
 
-  const [blockedHospitals, setBlockedHospitals] = useState<BlockedHospital[]>([
+  const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([
     {
       id: "BL001",
       userId: "user_test",
@@ -199,9 +199,9 @@ export function AdminPage() {
     toast.success("화이트리스트에서 제거되었습니다.");
   };
 
-  // 병원 차단 해제
-  const handleUnblockHospital = (id: string) => {
-    setBlockedHospitals(prev => prev.filter(item => item.id !== id));
+  // 사용자 차단 해제
+  const handleUnblockUser = (id: string) => {
+    setBlockedUsers(prev => prev.filter(item => item.id !== id));
     toast.success("차단이 해제되었습니다.");
   };
 
@@ -260,7 +260,7 @@ export function AdminPage() {
             </TabsTrigger>
             <TabsTrigger value="blocked" className="gap-2">
               <Ban className="w-4 h-4" />
-              차단 병원
+              차단 사용자
             </TabsTrigger>
             <TabsTrigger value="models" className="gap-2">
               <FileText className="w-4 h-4" />
@@ -273,7 +273,7 @@ export function AdminPage() {
             <Card className="p-6 shadow-lg">
               <h2 className="mb-4" style={{ color: '#6B3131' }}>회원가입 신청 목록</h2>
               <p className="text-sm text-gray-600 mb-6">
-                병원의 회원가입 신청을 검토하고 승인/거부할 수 있습니다.
+                사용자의 회원가입 신청을 검토하고 승인/거부할 수 있습니다.
               </p>
 
               <div className="rounded-md border">
@@ -342,7 +342,7 @@ export function AdminPage() {
                     <DialogHeader>
                       <DialogTitle>화이트리스트 추가</DialogTitle>
                       <DialogDescription>
-                        새로운 병원의 이메일 도메인을 화이트리스트에 추가합니다.
+                        새로운 사용자의 이메일 도메인을 화이트리스트에 추가합니다.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
@@ -382,7 +382,7 @@ export function AdminPage() {
               </div>
 
               <p className="text-sm text-gray-600 mb-6">
-                회원가입 시 허용되는 병원 이메일 도메인을 관리합니다.
+                회원가입 시 허용되는 사용자 이메일 도메인을 관리합니다.
               </p>
 
               <div className="rounded-md border">
@@ -442,12 +442,12 @@ export function AdminPage() {
             </Card>
           </TabsContent>
 
-          {/* 차단 병원 탭 */}
+          {/* 차단 사용자 탭 */}
           <TabsContent value="blocked">
             <Card className="p-6 shadow-lg">
-              <h2 className="mb-4" style={{ color: '#6B3131' }}>차단된 병원</h2>
+              <h2 className="mb-4" style={{ color: '#6B3131' }}>차단된 사용자</h2>
               <p className="text-sm text-gray-600 mb-6">
-                서비스 이용이 차단된 병원 목록입니다.
+                서비스 이용이 차단된 사용자 목록입니다.
               </p>
 
               <div className="rounded-md border">
@@ -462,19 +462,19 @@ export function AdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {blockedHospitals.length === 0 ? (
+                    {blockedUsers.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                          차단된 병원이 없습니다.
+                          차단된 사용자가 없습니다.
                         </TableCell>
                       </TableRow>
                     ) : (
-                      blockedHospitals.map((hospital) => (
-                        <TableRow key={hospital.id}>
-                          <TableCell className="font-mono text-sm">{hospital.userId}</TableCell>
-                          <TableCell>{hospital.email}</TableCell>
-                          <TableCell>{hospital.reason}</TableCell>
-                          <TableCell>{hospital.blockedDate}</TableCell>
+                      blockedUsers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-mono text-sm">{user.userId}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>{user.reason}</TableCell>
+                          <TableCell>{user.blockedDate}</TableCell>
                           <TableCell className="text-right">
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -491,13 +491,13 @@ export function AdminPage() {
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>차단을 해제하시겠습니까?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    {hospital.userId}의 서비스 이용 차단이 해제됩니다.
+                                    {user.userId}의 서비스 이용 차단이 해제됩니다.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>취소</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => handleUnblockHospital(hospital.id)}
+                                    onClick={() => handleUnblockUser(user.id)}
                                     style={{ backgroundColor: '#FF9500' }}
                                     className="text-white"
                                   >
@@ -521,7 +521,7 @@ export function AdminPage() {
             <Card className="p-6 shadow-lg">
               <h2 className="mb-4" style={{ color: '#6B3131' }}>업로드된 모델 관리</h2>
               <p className="text-sm text-gray-600 mb-6">
-                병원에서 업로드한 모델을 검토하고 승인/거부할 수 있습니다.
+                사용자에서 업로드한 모델을 검토하고 승인/거부할 수 있습니다.
               </p>
 
               <div className="rounded-md border">

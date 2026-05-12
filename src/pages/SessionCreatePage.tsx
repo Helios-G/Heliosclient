@@ -149,7 +149,7 @@ export function SessionCreatePage() {
   
       addSession(newSession); 
       setShowSuccessAlert(true);
-      setTimeout(() => navigate("/session/list"), 2000);
+      setTimeout(() => navigate(`/session/${result.sessionId}/labeling/auto`), 2000);
   
     } catch (error) {
       console.error("❌ 세션 생성 실패:", error);
@@ -166,7 +166,7 @@ export function SessionCreatePage() {
             <AlertDescription className="text-green-800">
               <p>연합학습 세션이 생성되었습니다.</p>
               <p className="text-sm mt-1">
-                참여 병원을 모집하고 조건 인원 수가 차면 자동으로 학습이 시작됩니다.
+                라벨링 페이지로 이동합니다...
               </p>
             </AlertDescription>
           </Alert>

@@ -12,28 +12,46 @@ export function LoginPage() {
     email: "",
     password: ""
   });
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // 실제로는 API 호출하여 인증
-    // 여기서는 테스트를 위해 임시 데이터 사용
-    // admin@helios.com으로 로그인하면 관리자 권한 부여
-    const isAdminUser = formData.email === "admin@helios.com";
-    
-    const mockUserData = {
-      id: isAdminUser ? 0 : 1,
-      name: isAdminUser ? "HELIOS 관리자" : "서울중앙병원",
-      email: formData.email,
-      businessNumber: "123-45-67890",
-      phone: "02-1234-5678",
-      address: "서울특별시 강남구 테헤란로 123",
-      managerName: isAdminUser ? "시스템 관리자" : "홍길동",
-      isAdmin: isAdminUser
-    };
+    setError(null);
 
-    login(mockUserData);
-    navigate("/");
+    try {
+      // 1. 로그인 API 호출
+      const response = await fetch("http://localhost:8081/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password
+        })
+      });
+
+      if (!response.ok) {
+        setError("이메일 또는 비밀번호가 올바르지 않습니다.");
+        return;
+      }
+
+      const data = await response.json();
+      const token = data.data.accessToken;
+
+      // 2. 유저 정보 조회
+      const userResponse = await fetch("http://localhost:8081/users/me", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const userData = await userResponse.json();
+      console.log("전체 응답:", userData);           // 구조 확인
+console.log("userData.data:", userData.data);  // 현재 넘기는 값
+
+      // 3. 로그인 처리
+      login(userData.data, token);
+      navigate("/");
+
+    } catch (err) {
+      setError("서버 연결에 실패했습니다.");
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -83,6 +101,11 @@ export function LoginPage() {
               />
               <p className="text-xs text-gray-500">비밀번호를 다시 확인해주세요.</p>
             </div>
+
+            {/* 에러 메시지 */}
+            {error && (
+              <p className="text-red-500 text-sm text-center">{error}</p>
+            )}
 
             {/* 로그인 버튼 */}
             <Button
