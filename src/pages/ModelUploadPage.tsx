@@ -24,7 +24,7 @@ interface UploadResult {
 }
 
 export function ModelUploadPage() {
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -37,7 +37,7 @@ export function ModelUploadPage() {
   const [isDragging, setIsDragging] = useState(false);
 
   // 로그인 체크
-  if (!hospital) {
+  if (!user) {
     navigate("/login");
     return null;
   }

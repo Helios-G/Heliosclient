@@ -14,7 +14,7 @@ import logo from "../assets/logo.png";
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isLoggedIn, hospital, isAdmin, logout } = useAuth();
+  const { isLoggedIn, user, isAdmin, logout } = useAuth();
 
   const handleSectionClick = (sectionId: string) => {
     if (location.pathname !== '/') {
@@ -93,9 +93,9 @@ export function Header() {
           )}
         </nav>
 
-        {/* Auth Buttons or Hospital Menu */}
+        {/* Auth Buttons or User Menu */}
         <div className="flex items-center gap-3">
-          {isLoggedIn && hospital ? (
+          {isLoggedIn && user ? (
             // 로그인된 상태
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -104,7 +104,7 @@ export function Header() {
                   className="gap-2 border-2 hover:border-[#FF9500] bg-white"
                 >
                   <Building2 className="w-4 h-4" style={{ color: '#FF9500' }} />
-                  <span>{hospital.name}</span>
+                  <span>{user.name}</span>
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>

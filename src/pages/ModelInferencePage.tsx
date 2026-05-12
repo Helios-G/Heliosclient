@@ -57,11 +57,11 @@ export function ModelInferencePage() {
   const selectedModel = getPlaygroundModelById(selectedModelId);
 
   useEffect(() => {
-    if (!hospital) {
+    if (!user) {
       alert("로그인이 필요한 서비스입니다.");
       navigate("/login");
     }
-  }, [hospital, navigate]);
+  }, [user, navigate]);
 
   useEffect(() => {
     setSearchParams({ model: selectedModelId }, { replace: true });

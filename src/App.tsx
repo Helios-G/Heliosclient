@@ -18,14 +18,14 @@ import { ModelDownloadPage } from "./pages/ModelDownloadPage";
 import { ModelDetailPage } from "./pages/ModelDetailPage";
 import { AdminPage } from "./pages/AdminPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
-
-// ✅ [추가됨] 이 줄이 빠져서 에러가 났던 겁니다!
 import { ModelInferencePage } from "./pages/ModelInferencePage";
 import { ModelInferenceReportPage } from "./pages/ModelInferenceReportPage";
 
 import { TrainingDataProvider } from "./contexts/TrainingDataContext";
 import { SessionProvider } from "./contexts/SessionContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
+//추후 중첩라우팅으로 리팩토링
 export default function App() {
   return (
     <BrowserRouter>
@@ -34,23 +34,24 @@ export default function App() {
           <TrainingDataProvider>
             <Layout>
               <Routes>
+                {/* 🟢 누구나 접근 가능 (Public Routes) */}
                 <Route path="/" element={<HomePage />} />
                 <Route path="/signup" element={<SignUpPage />} />
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/mypage" element={<MyPage />} />
-                
-                {/* 세션 관련 */}
-                <Route path="/upload" element={<SessionListPage />} />
-                <Route path="/session/list" element={<SessionListPage />} />
-                <Route path="/session/create" element={<SessionCreatePage />} />
-                <Route path="/session/:sessionId" element={<SessionDetailPage />} />
-                <Route path="/session/:sessionId/join" element={<SessionJoinPage />} />
+
+                {/* 🔴 로그인이 필요한 페이지들 (Protected Routes) */}
+                <Route path="/mypage" element={<ProtectedRoute><MyPage /></ProtectedRoute>} />
+                <Route path="/upload" element={<ProtectedRoute><SessionListPage /></ProtectedRoute>} />
+                <Route path="/session/list" element={<ProtectedRoute><SessionListPage /></ProtectedRoute>} />
+                <Route path="/session/create" element={<ProtectedRoute><SessionCreatePage /></ProtectedRoute>} />
+                <Route path="/session/:sessionId" element={<ProtectedRoute><SessionDetailPage /></ProtectedRoute>} />
+                <Route path="/session/:sessionId/join" element={<ProtectedRoute><SessionJoinPage /></ProtectedRoute>} />
                 
                 {/* 라벨링 & 학습 */}
-                <Route path="/session/:sessionId/labeling/auto" element={<LabelingAutoPage />} />
-                <Route path="/session/:sessionId/labeling/manual" element={<LabelingManualPage />} />
-                <Route path="/session/:sessionId/training" element={<SessionTrainingPage />} />
-                <Route path="/session/:sessionId/results" element={<SessionResultsPage />} />
+                <Route path="/session/:sessionId/labeling/auto" element={<ProtectedRoute><LabelingAutoPage /></ProtectedRoute>} />
+                <Route path="/session/:sessionId/labeling/manual" element={<ProtectedRoute><LabelingManualPage /></ProtectedRoute>} />
+                <Route path="/session/:sessionId/training" element={<ProtectedRoute><SessionTrainingPage /></ProtectedRoute>} />
+                <Route path="/session/:sessionId/results" element={<ProtectedRoute><SessionResultsPage /></ProtectedRoute>} />
                 
                 {/* 모델 & 관리자 */}
                 <Route path="/download" element={<ModelDownloadPage />} />
