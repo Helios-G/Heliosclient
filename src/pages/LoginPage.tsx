@@ -4,6 +4,20 @@ import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { authFetch } from "../lib/authFetch";
+
+interface LoginResponse {
+  grantType: string;
+  accessToken: string;
+  userId: number;
+}
+
+interface MyInfoResponse {
+  name: string;
+  email: string;
+  roleId: number;
+  roleName: string;
+}
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -12,45 +26,54 @@ export function LoginPage() {
     email: "",
     password: ""
   });
-  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
 
     try {
-      // 1. 로그인 API 호출
-      const response = await fetch("http://localhost:8081/auth/login", {
+      setIsSubmitting(true);
+      setErrorMessage("");
+
+      const loginResponse = await authFetch("/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password
-        })
+        body: JSON.stringify(formData),
       });
 
-      if (!response.ok) {
-        setError("이메일 또는 비밀번호가 올바르지 않습니다.");
-        return;
+      if (!loginResponse.ok) {
+        const errorText = await loginResponse.text();
+        throw new Error(errorText || "로그인에 실패했습니다.");
       }
 
-      const data = await response.json();
-      const token = data.data.accessToken;
+      const tokenData = (await loginResponse.json()) as LoginResponse;
+      localStorage.setItem("accessToken", tokenData.accessToken);
 
-      // 2. 유저 정보 조회
-      const userResponse = await fetch("http://localhost:8081/users/me", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const userData = await userResponse.json();
-      console.log("전체 응답:", userData);           // 구조 확인
-console.log("userData.data:", userData.data);  // 현재 넘기는 값
+      const myInfoResponse = await authFetch("/users/me");
+      if (!myInfoResponse.ok) {
+        throw new Error("사용자 정보를 불러오지 못했습니다.");
+      }
 
-      // 3. 로그인 처리
-      login(userData.data, token);
+      const myInfo = (await myInfoResponse.json()) as MyInfoResponse;
+      const userData = {
+        id: tokenData.userId,
+        name: myInfo.name,
+        email: myInfo.email,
+        businessNumber: "",
+        phone: "",
+        address: "",
+        managerName: myInfo.name,
+        isAdmin: myInfo.roleName === "ROLE_ADMIN",
+      };
+
+      login(userData);
       navigate("/");
-
-    } catch (err) {
-      setError("서버 연결에 실패했습니다.");
+    } catch (error) {
+      localStorage.removeItem("accessToken");
+      const message = error instanceof Error ? error.message : "로그인 중 오류가 발생했습니다.";
+      setErrorMessage(message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -102,18 +125,18 @@ console.log("userData.data:", userData.data);  // 현재 넘기는 값
               <p className="text-xs text-gray-500">비밀번호를 다시 확인해주세요.</p>
             </div>
 
-            {/* 에러 메시지 */}
-            {error && (
-              <p className="text-red-500 text-sm text-center">{error}</p>
+            {errorMessage && (
+              <p className="text-sm text-red-600">{errorMessage}</p>
             )}
 
             {/* 로그인 버튼 */}
             <Button
               type="submit"
+              disabled={isSubmitting}
               className="w-full py-6 text-white rounded-lg hover:opacity-90"
               style={{ backgroundColor: '#FF9500' }}
             >
-              로그인
+              {isSubmitting ? "로그인 중..." : "로그인"}
             </Button>
           </form>
         </Card>

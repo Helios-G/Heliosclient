@@ -13,6 +13,7 @@ import { MyFlowerClient } from "../lib/fl_client";
 import { useTrainingData } from "../contexts/TrainingDataContext";
 import { useSession } from "../contexts/SessionContext";
 import { authFetch } from "../lib/authFetch";
+import { normalizeSessionDomain } from "../lib/domainScreening";
 
 type TrainingStatus = "preparing" | "training" | "waiting" | "completed";
 
@@ -26,8 +27,9 @@ export function SessionTrainingPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-
-  const { xTrain, yTrain, xTest, yTest, setFinalMetrics } = useTrainingData();
+  
+  // ✅ 4개 데이터 모두 가져오기
+  const { xTrain, yTrain, xTest, yTest, screeningMeta, setFinalMetrics } = useTrainingData();
   const { getSession, upsertSession } = useSession();
 
   const session = getSession(sessionId || "");
@@ -155,16 +157,26 @@ export function SessionTrainingPage() {
 
       console.log("💉 Train/Test 데이터를 클라이언트에 주입합니다.");
       client.addData(xTrain, yTrain, xTest, yTest);
-
-      const userToken = user?.id?.toString() || "1";
+      client.setTrainingMeta({
+        expectedDomain: screeningMeta?.expectedDomain ?? normalizeSessionDomain(sessionMeta?.dataType),
+        detectedDomain: screeningMeta?.detectedDomain ?? normalizeSessionDomain(sessionMeta?.dataType),
+        domainScore: screeningMeta?.domainScore ?? 1,
+        sampleCount: screeningMeta?.sampleCount ?? xTrain.shape[0] + xTest.shape[0],
+      });
+      
+      const userToken = user?.id?.toString();
       const algo = sessionMeta?.algorithm || session?.algorithm || "FedAvg";
 
       const urlParams = new URLSearchParams(window.location.search);
-      const mockId = urlParams.get("hId") || user?.id?.toString() || "1";
+      const requestUserId = urlParams.get('hId') || user?.id?.toString();
 
-      const wsUrl = `ws://localhost:8080/ws/fl/${sessionId}/${userToken}?algo=${algo}&userId=${mockId}`;
+      if (!userToken || !requestUserId) {
+        throw new Error("로그인 사용자 ID를 확인할 수 없습니다. 다시 로그인해주세요.");
+      }
 
-      console.log(`🔗 웹소켓 연결 시도 (사용자ID: ${mockId}): ${wsUrl}`);
+      const wsUrl = `ws://localhost:8000/ws/fl/${sessionId}/${userToken}?algo=${algo}&userId=${requestUserId}`;
+
+      console.log(`🔗 웹소켓 연결 시도 (사용자ID: ${requestUserId}): ${wsUrl}`);
       await flwr.connect(wsUrl, client);
 
       const finalResult = {
@@ -189,7 +201,7 @@ export function SessionTrainingPage() {
       }, 3000);
     } catch (err) {
       console.error(err);
-      setLogMessage("❌ 서버 연결 실패! (파이썬 서버가 8080번 포트로 켜져있나요?)");
+      setLogMessage(`❌ 서버 연결 실패: ${err instanceof Error ? err.message : "screening rejected or server error"}`);
       setTimeout(() => setStatus("preparing"), 3000);
     }
   };

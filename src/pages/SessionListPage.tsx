@@ -13,6 +13,7 @@ export function SessionListPage() {
   const [allSessions, setAllSessions] = useState<any[]>([]);
   const [filter, setFilter] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
     if (!user) {
@@ -23,18 +24,26 @@ export function SessionListPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        setErrorMessage("");
         const [myRes, allRes] = await Promise.all([
           authFetch(`/sessions/my?userId=${user.id}`),
           authFetch(`/sessions`)
         ]);
 
+        if (!myRes.ok || !allRes.ok) {
+          throw new Error("세션 목록을 불러오지 못했습니다.");
+        }
+
         const myData = await myRes.json();
         const allData = await allRes.json();
 
-        setMySessions(myData);
-        setAllSessions(allData);
+        setMySessions(Array.isArray(myData) ? myData : []);
+        setAllSessions(Array.isArray(allData) ? allData : []);
       } catch (error) {
         console.error("데이터 로드 실패:", error);
+        setMySessions([]);
+        setAllSessions([]);
+        setErrorMessage(error instanceof Error ? error.message : "데이터 로드 실패");
       } finally {
         setIsLoading(false);
       }
@@ -106,6 +115,7 @@ export function SessionListPage() {
             <p>원하는 세션의 참여하기 버튼을 클릭 후, 안내에 따라 라벨링을 진행합니다.</p>
             <p>조건 기관 수가 채워지면 학습이 자동 시작됩니다.</p>
             <p>완료된 목록은 모델 다운로드 페이지에서 다운받아 사용이 가능합니다.</p>
+            {errorMessage && <p className="text-red-600">{errorMessage}</p>}
           </div>
         </div>
 

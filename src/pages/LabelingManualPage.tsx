@@ -21,6 +21,10 @@ import {
 
 import * as tf from "@tensorflow/tfjs";
 import { useTrainingData } from "../contexts/TrainingDataContext";
+import { useSession } from "../contexts/SessionContext";
+import { authFetch } from "../lib/authFetch";
+import { normalizeSessionDomain, screenFilesForSessionDomain, type DomainScreeningResult } from "../lib/domainScreening";
+import { ensureGpuBackend } from "../lib/tfBackend";
 
 interface ImageFile {
   filename: string;
@@ -42,7 +46,8 @@ export function LabelingManualPage() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { setTrainingData } = useTrainingData();
+  const { setTrainingData, setScreeningMeta } = useTrainingData();
+  const { getSession, upsertSession } = useSession();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -56,19 +61,61 @@ export function LabelingManualPage() {
   const [currentPage, setCurrentPage] = useState(0);
 
   const [model, setModel] = useState<tf.GraphModel | null>(null);
+  const [sessionData, setSessionData] = useState<any | null>(null);
+  const [domainCheckResult, setDomainCheckResult] = useState<DomainScreeningResult | null>(null);
 
   // 로그인 체크
   useEffect(() => {
     if (!user) navigate("/login");
   }, [user, navigate]);
 
+  useEffect(() => {
+    const loadSession = async () => {
+      if (!sessionId) return;
+      const localSession = getSession(sessionId);
+      try {
+        const response = await authFetch(`/sessions/${sessionId}`);
+        if (response.ok) {
+          const serverSession = await response.json();
+          setSessionData(serverSession);
+          upsertSession({
+            id: String(serverSession.sessionId ?? sessionId),
+            title: serverSession.title ?? "제목 없음",
+            dataType: serverSession.dataFormat ?? "X-ray",
+            classNames:
+              typeof serverSession.labelClassList === "string" && serverSession.labelClassList.length > 0
+                ? serverSession.labelClassList.split(",").map((item: string) => item.trim())
+                : [],
+            algorithm: serverSession.algorithm ?? localSession?.algorithm ?? "FedAvg",
+            rounds: serverSession.rounds ?? localSession?.rounds ?? 5,
+            createdAt: serverSession.createdAt ?? localSession?.createdAt ?? new Date().toISOString(),
+            createdBy: serverSession.createdBy ?? localSession?.createdBy ?? "unknown",
+            status:
+              serverSession.status === "IN_PROGRESS"
+                ? "running"
+                : serverSession.status === "COMPLETED"
+                  ? "completed"
+                  : "waiting",
+            participants: serverSession.participantCount ?? localSession?.participants ?? 0,
+            targetParticipants: serverSession.maxParticipants ?? localSession?.targetParticipants ?? 0,
+          });
+          return;
+        }
+      } catch (error) {
+        console.warn("세션 상세를 불러오지 못했습니다.", error);
+      }
+      setSessionData(localSession ?? null);
+    };
+
+    loadSession();
+  }, [sessionId, getSession, upsertSession]);
+
   // ✅ 1. 모델 로드 (AutoPage와 동일)
   useEffect(() => {
     const loadModel = async () => {
       try {
         console.log("⏳ CheXpert 모델 로딩 중...");
-        await tf.setBackend('webgl');
-        await tf.ready();
+        await ensureGpuBackend();
         
         const loadedModel = await tf.loadGraphModel("/models/chexpert_tfjs/model.json");
         setModel(loadedModel);
@@ -86,6 +133,20 @@ export function LabelingManualPage() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+
+    const expectedDomain = normalizeSessionDomain(sessionData?.dataFormat ?? sessionData?.dataType ?? "X-ray");
+    if (expectedDomain !== "xray") {
+      alert("수동 라벨링은 현재 X-ray 세션만 지원합니다.");
+      return;
+    }
+
+    const candidateFiles = Array.from(files).filter(file => file.type.startsWith("image/"));
+    const gate = await screenFilesForSessionDomain(candidateFiles, expectedDomain);
+    setDomainCheckResult(gate);
+    if (!gate.accepted) {
+      alert(`세션 도메인과 맞지 않는 데이터입니다.\n${gate.summary}`);
+      return;
+    }
 
     const imageFiles: ImageFile[] = [];
     for (let i = 0; i < files.length; i++) {
@@ -325,6 +386,12 @@ export function LabelingManualPage() {
           setTrainingData(trainTensors.x, trainTensors.y, testTensors.x, testTensors.y);
         }
         navigate(`/session/${sessionId}/training`);
+        setScreeningMeta({
+          expectedDomain: domainCheckResult?.expectedDomain ?? "xray",
+          detectedDomain: domainCheckResult?.detectedDomain ?? "xray",
+          domainScore: domainCheckResult?.compatibilityScore ?? 1,
+          sampleCount: xTensors.length,
+        });
       }
     } catch (error) {
       console.error(error);

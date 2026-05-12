@@ -19,6 +19,8 @@ import { ModelDetailPage } from "./pages/ModelDetailPage";
 import { AdminPage } from "./pages/AdminPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { ModelInferencePage } from "./pages/ModelInferencePage";
+import { ModelInferenceReportPage } from "./pages/ModelInferenceReportPage";
+
 import { TrainingDataProvider } from "./contexts/TrainingDataContext";
 import { SessionProvider } from "./contexts/SessionContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -52,10 +54,13 @@ export default function App() {
                 <Route path="/session/:sessionId/results" element={<ProtectedRoute><SessionResultsPage /></ProtectedRoute>} />
                 
                 {/* 모델 & 관리자 */}
-                <Route path="/download" element={<ProtectedRoute><ModelDownloadPage /></ProtectedRoute>} />
-                <Route path="/model/:modelId" element={<ProtectedRoute><ModelDetailPage /></ProtectedRoute>} />
-                <Route path="/admin" element={<ProtectedRoute><AdminPage /></ProtectedRoute>} />
-                <Route path="/playground" element={<ProtectedRoute><ModelInferencePage /></ProtectedRoute>} />
+                <Route path="/download" element={<ModelDownloadPage />} />
+                <Route path="/model/:modelId" element={<ModelDetailPage />} />
+                <Route path="/admin" element={<AdminPage />} />
+
+                {/* ✅ AI 진단실 (Playground) */}
+                <Route path="/playground" element={<ModelInferencePage />} />
+                <Route path="/playground/report" element={<ModelInferenceReportPage />} />
                 
                 <Route path="*" element={<NotFoundPage />} />
               </Routes>

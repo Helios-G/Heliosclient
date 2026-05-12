@@ -9,6 +9,8 @@ import * as tf from "@tensorflow/tfjs";
 import { useTrainingData } from "../contexts/TrainingDataContext";
 import { useSession } from "../contexts/SessionContext";
 import { authFetch } from "../lib/authFetch";
+import { normalizeSessionDomain, screenFilesForSessionDomain, type DomainScreeningResult } from "../lib/domainScreening";
+import { ensureGpuBackend } from "../lib/tfBackend";
 
 // ─── 레이블 정의 ───────────────────────────────────────────────────────────────
 const CHEXPERT_LABELS = [
@@ -59,7 +61,7 @@ export function LabelingAutoPage() {
   const { sessionId } = useParams();
   const navigate      = useNavigate();
   const { user }  = useAuth();
-  const { setTrainingData } = useTrainingData();
+  const { setTrainingData, setScreeningMeta } = useTrainingData();
   const { getSession, upsertSession } = useSession();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +78,7 @@ export function LabelingAutoPage() {
   const [modelType, setModelType] = useState<ModelType>("chexpert");
   const [sessionData, setSessionData] = useState<any | null>(null);
   const [isSessionLoading, setIsSessionLoading] = useState(true);
+  const [domainCheckResult, setDomainCheckResult] = useState<DomainScreeningResult | null>(null);
 
   useEffect(() => {
     if (!user) navigate("/login");
@@ -145,8 +148,7 @@ export function LabelingAutoPage() {
           return;
         }
 
-        await tf.setBackend("webgl");
-        await tf.ready();
+        await ensureGpuBackend();
 
         if (isDR) {
           console.log("⏳ DR 당뇨망막병증 모델 로딩 중...");
@@ -182,6 +184,14 @@ export function LabelingAutoPage() {
     const imageFiles = Array.from(files).filter(f => f.type.startsWith("image/"));
     if (imageFiles.length === 0) {
       alert("이미지 파일만 업로드할 수 있습니다.");
+      return;
+    }
+
+    const expectedDomain = normalizeSessionDomain(sessionData?.dataFormat ?? sessionData?.dataType ?? "X-ray");
+    const gate = await screenFilesForSessionDomain(imageFiles, expectedDomain);
+    setDomainCheckResult(gate);
+    if (!gate.accepted) {
+      alert(`세션 도메인과 맞지 않는 데이터입니다.\n${gate.summary}`);
       return;
     }
 
@@ -364,6 +374,12 @@ export function LabelingAutoPage() {
           totalImages: labeledData.length,
           trainShape: xAll.shape,
           labelShape: yAll.shape,
+        });
+        setScreeningMeta({
+          expectedDomain: domainCheckResult?.expectedDomain ?? normalizeSessionDomain(sessionData?.dataFormat ?? sessionData?.dataType ?? "X-ray"),
+          detectedDomain: domainCheckResult?.detectedDomain ?? modelType,
+          domainScore: domainCheckResult?.compatibilityScore ?? 1,
+          sampleCount: labeledData.length,
         });
         navigate(`/session/${sessionId}/training`);
       } else {

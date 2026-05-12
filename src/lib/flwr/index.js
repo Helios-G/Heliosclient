@@ -11,14 +11,38 @@ export class Flwr {
   async connect(url, client) {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(url);
+      let settled = false;
 
-      this.ws.onopen = () => {
+      this.ws.onopen = async () => {
         console.log("✅ Connected to Flower Server");
-        // 여기서 resolve()를 하지 않고 기다립니다!
+        if (typeof client.buildHelloPayload === "function") {
+          try {
+            const helloPayload = await client.buildHelloPayload();
+            this.ws.send(JSON.stringify(helloPayload));
+          } catch (err) {
+            settled = true;
+            reject(err);
+            this.ws.close();
+          }
+        }
       };
 
       this.ws.onmessage = async (event) => {
         const msg = JSON.parse(event.data);
+
+        if (msg.type === "admission") {
+          if (msg.accepted === false) {
+            const reason = msg.reason || "Client admission rejected by screening agent";
+            if (!settled) {
+              settled = true;
+              reject(new Error(reason));
+            }
+            this.ws.close(1008, reason);
+          } else {
+            console.log("🛡️ Screening admission accepted:", msg.reason || "accepted");
+          }
+          return;
+        }
 
         if (msg.type === "status") {
           if (this.onStatus) {
@@ -46,12 +70,18 @@ export class Flwr {
       // ✅ 서버가 연결을 끊거나 에러가 나면 그때서야 끝냅니다.
       this.ws.onclose = () => {
         console.log("🔌 Disconnected from Server");
-        resolve(); // 이제야 함수가 끝나고 '완료' 화면으로 넘어감
+        if (!settled) {
+          settled = true;
+          resolve();
+        }
       };
 
       this.ws.onerror = (err) => {
         console.error("WebSocket Error:", err);
-        reject(err);
+        if (!settled) {
+          settled = true;
+          reject(err);
+        }
       };
     });
   }
