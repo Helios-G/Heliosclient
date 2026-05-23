@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Card } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
+import { Button } from "../components/ui/button";
 import { Folder, Loader2, Download, Check } from "lucide-react";
 
 import * as tf from "@tensorflow/tfjs";
@@ -11,6 +12,9 @@ import { useSession } from "../contexts/SessionContext";
 import { authFetch } from "../lib/authFetch";
 import { normalizeSessionDomain, screenFilesForSessionDomain, type DomainScreeningResult } from "../lib/domainScreening";
 import { ensureGpuBackend } from "../lib/tfBackend";
+import { readApiData } from "../lib/api";
+import { CohereMetricCard, CoherePage, CoherePageHeader } from "../components/CoherePage";
+import { CLASSIFICATION_TASK } from "../lib/taskTypes";
 
 // ─── 레이블 정의 ───────────────────────────────────────────────────────────────
 const CHEXPERT_LABELS = [
@@ -93,7 +97,7 @@ export function LabelingAutoPage() {
         try {
           const response = await authFetch(`/sessions/${sessionId}`);
           if (response.ok) {
-            const serverSession = await response.json();
+            const serverSession = await readApiData<any>(response);
             setSessionData(serverSession);
             upsertSession({
               id: String(serverSession.sessionId ?? sessionId ?? ""),
@@ -380,6 +384,8 @@ export function LabelingAutoPage() {
           detectedDomain: domainCheckResult?.detectedDomain ?? modelType,
           domainScore: domainCheckResult?.compatibilityScore ?? 1,
           sampleCount: labeledData.length,
+          taskType: CLASSIFICATION_TASK,
+          metricLabel: "Accuracy",
         });
         navigate(`/session/${sessionId}/training`);
       } else {
@@ -411,10 +417,12 @@ export function LabelingAutoPage() {
   // ─── STEP 1: 폴더 선택 ────────────────────────────────────────────────────────
   if (step === "select") {
     return (
-      <div className="min-h-screen py-12 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">{modelTitle}</h1>
-          <p className="text-gray-500 mb-6">{modelDesc}</p>
+      <CoherePage>
+          <CoherePageHeader
+            eyebrow="Auto Labeling"
+            title={modelTitle}
+            description={modelDesc}
+          />
 
           {/* DR 레벨 안내 배지 */}
           {modelType === "dr" && (
@@ -430,10 +438,11 @@ export function LabelingAutoPage() {
             </div>
           )}
 
-          <div style={{ border: "2px dashed #ccc", padding: "40px", textAlign: "center", borderRadius: "10px", marginBottom: "20px", backgroundColor: "#fff" }}>
-            <Folder style={{ width: "64px", height: "64px", margin: "0 auto 16px", color: "#FF9500" }} />
-            <h3 className="text-xl font-semibold mb-2">데이터 폴더 선택</h3>
-            <p className="text-gray-600 mb-6">
+          <div className="cohere-upload-zone">
+            <div>
+            <Folder className="mx-auto mb-5 h-16 w-16" />
+            <h3 className="cohere-section-title mb-2">데이터 폴더 선택</h3>
+            <p className="mx-auto mb-7 max-w-lg text-slate-600">
               {modelType === "dr" ? "안저(Fundus) 이미지" : "X-ray 이미지"}가 들어있는 폴더를 선택하세요.
             </p>
             <input
@@ -446,37 +455,30 @@ export function LabelingAutoPage() {
               // @ts-ignore
               webkitdirectory="" directory=""
             />
-            <button
+            <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={!model}
-              style={{
-                backgroundColor: model ? "#FF9500" : "#ccc",
-                color: "white", padding: "15px 30px", fontSize: "18px",
-                border: "none", borderRadius: "8px",
-                cursor: model ? "pointer" : "not-allowed",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                margin: "0 auto", fontWeight: "bold",
-              }}
+              className="cohere-gradient-button cohere-folder-button h-12 px-7"
             >
               {model
                 && !isSessionLoading
-                ? <><Folder style={{ width: "24px", height: "24px", marginRight: "10px" }} />폴더 업로드 및 분석 시작</>
-                : <><Loader2 style={{ width: "24px", height: "24px", marginRight: "10px" }} className="animate-spin" />세션/모델 로딩 중...</>
+                ? <><Folder className="h-5 w-5" /><span>폴더 업로드 및 분석 시작</span></>
+                : <><Loader2 className="h-5 w-5 animate-spin" /><span>세션/모델 로딩 중...</span></>
               }
-            </button>
+            </Button>
+            </div>
           </div>
-        </div>
-      </div>
+      </CoherePage>
     );
   }
 
   // ─── STEP 2: 라벨링 진행 ─────────────────────────────────────────────────────
   if (step === "labeling") {
     return (
-      <div className="min-h-screen py-12 px-4 bg-white flex items-center justify-center">
-        <div className="max-w-xl w-full text-center">
-          <Loader2 className="w-16 h-16 mx-auto mb-4 text-orange-500 animate-spin" />
-          <h3 className="text-xl font-bold mb-2">AI가 이미지를 분석 중입니다</h3>
+      <div className="cohere-page flex items-center justify-center px-4 py-12">
+        <div className="cohere-surface w-full max-w-xl p-8 text-center">
+          <Loader2 className="w-16 h-16 mx-auto mb-4 text-[#0f62fe] animate-spin" />
+          <h3 className="cohere-section-title mb-2">AI가 이미지를 분석 중입니다</h3>
           <p className="text-gray-600 mb-8">
             {modelType === "dr"
               ? "DR 모델이 당뇨망막병증 단계를 판별하고 있습니다..."
@@ -491,19 +493,13 @@ export function LabelingAutoPage() {
 
   // ─── STEP 3: 검수 ────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen py-12 px-4 bg-gray-50">
-      <div className="max-w-7xl mx-auto">
-
-        {/* 헤더 */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">라벨링 결과 검수</h1>
-            <p className="text-gray-600 mt-1">
-              총 <span className="font-bold text-[#FF9500]">{labeledData.length}</span>장 분석 완료.
-              잘못된 라벨은 수정하세요.
-            </p>
-          </div>
-          <div className="flex gap-2 bg-white p-1 rounded-lg border">
+    <CoherePage wide>
+        <CoherePageHeader
+          eyebrow="Review Workbench"
+          title="라벨링 결과 검수"
+          description={`총 ${labeledData.length}장 분석 완료. 잘못된 라벨은 수정하세요.`}
+          actions={
+            <div className="flex gap-2 rounded-full border border-slate-200 bg-white/80 p-1">
             {(["1x1", "2x2", "3x3"] as ViewMode[]).map(mode => (
               <button
                 key={mode}
@@ -516,7 +512,14 @@ export function LabelingAutoPage() {
                 }}
               >{mode}</button>
             ))}
-          </div>
+            </div>
+          }
+        />
+
+        <div className="cohere-stat-grid mb-8">
+          <CohereMetricCard label="분석 이미지" value={labeledData.length} caption="검수 대상" />
+          <CohereMetricCard label="모델" value={modelType === "dr" ? "DR" : "CheXpert"} caption="자동 라벨링 엔진" tone="cyan" />
+          <CohereMetricCard label="검수 모드" value={viewMode} caption={`${currentPage + 1} / ${totalPages || 1} 페이지`} tone="violet" />
         </div>
 
         {/* 이미지 그리드 */}
@@ -526,7 +529,7 @@ export function LabelingAutoPage() {
           : "grid-cols-3"
         }`}>
           {currentImages.map((data, index) => (
-            <Card key={index} className="overflow-hidden hover:shadow-md transition-shadow">
+            <Card key={index} className="cohere-model-card overflow-hidden p-0">
               <div className="aspect-square bg-black relative group">
                 <img src={data.imageUrl} alt={data.filename} className="w-full h-full object-contain" />
                 <div className="absolute bottom-0 left-0 right-0 bg-black/60 p-2 text-white text-xs truncate opacity-0 group-hover:opacity-100 transition-opacity">
@@ -545,7 +548,7 @@ export function LabelingAutoPage() {
                       <select
                         value={data.label}
                         onChange={e => handleUpdateLabel(index, e.target.value)}
-                        className="text-sm border rounded px-2 py-1 bg-white text-gray-800 cursor-pointer focus:ring-2 focus:ring-orange-500 outline-none w-full"
+                        className="text-sm border rounded px-2 py-1 bg-white text-gray-800 cursor-pointer focus:ring-2 focus:ring-[#0f62fe] outline-none w-full"
                       >
                         {DR_LABELS.map((label, i) => (
                           <option key={label} value={label}>Level {i}: {label}</option>
@@ -562,7 +565,7 @@ export function LabelingAutoPage() {
                           <span className="w-20 truncate text-gray-500">Lv{i} {label}</span>
                           <div className="flex-1 bg-gray-100 rounded-full h-1.5">
                             <div
-                              className="h-1.5 rounded-full bg-orange-400 transition-all"
+                              className="h-1.5 rounded-full bg-[#2dd4bf] transition-all"
                               style={{ width: `${(data.fullProbabilities[i] ?? 0) * 100}%` }}
                             />
                           </div>
@@ -579,7 +582,7 @@ export function LabelingAutoPage() {
                     <select
                       value={data.label}
                       onChange={e => handleUpdateLabel(index, e.target.value)}
-                      className="text-sm border rounded px-2 py-1 bg-white text-gray-800 cursor-pointer focus:ring-2 focus:ring-orange-500 outline-none w-full mr-2"
+                      className="text-sm border rounded px-2 py-1 bg-white text-gray-800 cursor-pointer focus:ring-2 focus:ring-[#0f62fe] outline-none w-full mr-2"
                     >
                       {CHEXPERT_LABELS.map(label => (
                         <option key={label} value={label}>{label}</option>
@@ -614,24 +617,24 @@ export function LabelingAutoPage() {
 
         {/* 액션 버튼 */}
         <div className="flex gap-4 justify-center pb-12">
-          <button
+          <Button
+            variant="outline"
             onClick={handleDownloadCSV}
-            style={{ padding: "15px 30px", border: "1px solid #ccc", borderRadius: "8px", background: "white", display: "flex", alignItems: "center", cursor: "pointer", fontSize: "16px" }}
+            className="h-12 px-6"
           >
             <Download className="w-5 h-5 mr-2" /> CSV 결과 저장
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={handleStartTraining}
             disabled={isProcessing}
-            style={{ padding: "15px 30px", borderRadius: "8px", background: "#6B3131", color: "white", border: "none", display: "flex", alignItems: "center", cursor: "pointer", fontSize: "16px", fontWeight: "bold" }}
+            className="cohere-gradient-button h-12 px-7"
           >
             {isProcessing
               ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" />변환 중...</>
               : <><Check className="w-5 h-5 mr-2" />검수 완료 및 연합학습 시작</>
             }
-          </button>
+          </Button>
         </div>
-      </div>
-    </div>
+    </CoherePage>
   );
 }

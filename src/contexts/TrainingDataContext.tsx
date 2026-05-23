@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState } from 'react';
 import * as tf from '@tensorflow/tfjs';
+import type { HeliosTaskType } from '../lib/taskTypes';
 
 interface FinalMetrics {
   accuracy: number;
@@ -7,6 +8,7 @@ interface FinalMetrics {
   rounds: number;
   startTime: string;
   endTime: string;
+  metricLabel?: string;
 }
 
 interface ScreeningMeta {
@@ -14,6 +16,9 @@ interface ScreeningMeta {
   detectedDomain: string;
   domainScore: number;
   sampleCount: number;
+  taskType?: HeliosTaskType;
+  maskShape?: number[];
+  metricLabel?: string;
 }
 
 interface TrainingDataContextType {
