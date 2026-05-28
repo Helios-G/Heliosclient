@@ -26,7 +26,7 @@ export function SignUpPage() {
 
       if (response.status === 200 || response.status === 201) {
         // 기존 주석과 알림 유지
-        alert("회원가입이 완료되었습니다. 관리자 승인 후 이용 가능합니다.");
+        alert("회원가입이 완료되었습니다. 로그인 후 이용해주세요.");
         navigate("/login");
       }
     } catch (error: any) {
@@ -49,24 +49,24 @@ export function SignUpPage() {
       <div className="cohere-page-wide">
         <div className="cohere-auth-shell">
           <section className="cohere-auth-visual">
-            <p className="cohere-eyebrow text-white">Institution onboarding</p>
-            <h1>연합학습 네트워크에 기관을 등록하세요</h1>
+            <p className="cohere-eyebrow text-white">Account onboarding</p>
+            <h1>HELIOS 워크스페이스 계정을 생성하세요</h1>
             <p>
-              가입 신청 후 관리자 승인 절차를 거치면 의료 영상 라벨링과
-              세션 기반 협업 학습에 참여할 수 있습니다.
+              사용자명, 이메일, 비밀번호만 입력하면 계정을 만들고
+              세션 기반 협업 학습과 AI Review 기능을 사용할 수 있습니다.
             </p>
             <div className="cohere-auth-stack">
               <div className="cohere-auth-row">
                 <span>Step 01</span>
-                <strong>기관 정보 제출</strong>
+                <strong>계정 정보 입력</strong>
               </div>
               <div className="cohere-auth-row">
                 <span>Step 02</span>
-                <strong>관리자 승인</strong>
+                <strong>로그인</strong>
               </div>
               <div className="cohere-auth-row">
                 <span>Step 03</span>
-                <strong>세션 참여 시작</strong>
+                <strong>세션 생성 및 참여</strong>
               </div>
             </div>
           </section>
@@ -76,7 +76,7 @@ export function SignUpPage() {
               <p className="cohere-eyebrow">Create account</p>
               <h2 className="cohere-section-title mt-2">회원가입</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                기관 담당자 정보를 입력하면 승인 대기 상태로 접수됩니다.
+                사용할 계정 정보를 입력하면 바로 로그인 화면으로 이동합니다.
               </p>
             </div>
 
@@ -132,15 +132,15 @@ export function SignUpPage() {
               <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm text-slate-600">
                 <div className="flex gap-3">
                   <Building2 className="mt-0.5 h-4 w-4 text-[#0f62fe]" />
-                  <span>가입 신청은 기관 단위로 검토됩니다.</span>
+                  <span>사용자명, 이메일, 비밀번호만으로 계정을 생성합니다.</span>
                 </div>
                 <div className="flex gap-3">
                   <FileCheck2 className="mt-0.5 h-4 w-4 text-[#0f62fe]" />
-                  <span>가입 완료 시 개인정보 제공 동의로 간주됩니다.</span>
+                  <span>가입 완료 후 로그인 화면으로 이동합니다.</span>
                 </div>
                 <div className="flex gap-3">
                   <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#0f62fe]" />
-                  <span>승인 후 세션 생성과 참여 기능을 사용할 수 있습니다.</span>
+                  <span>로그인 후 세션 생성, 라벨링, AI Review를 사용할 수 있습니다.</span>
                 </div>
               </div>
 

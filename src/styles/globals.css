@@ -483,7 +483,20 @@ html {
   backdrop-filter: blur(22px);
 }
 
+.cohere-dashboard-shell::before {
+  content: "";
+  position: absolute;
+  top: -120px;
+  right: -90px;
+  width: 260px;
+  height: 260px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(45, 212, 191, 0.22), transparent 68%);
+  pointer-events: none;
+}
+
 .cohere-dashboard-header {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -512,7 +525,7 @@ html {
 .cohere-dashboard-header span {
   white-space: nowrap;
   border-radius: 999px;
-  background: #eaf5ff;
+  background: rgba(15, 98, 254, 0.1);
   padding: 8px 11px;
   color: #0f62fe;
   font-size: 12px;
@@ -520,31 +533,49 @@ html {
 }
 
 .cohere-metrics-grid {
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 10px;
   padding: 18px;
 }
 
 .cohere-metric-card {
-  min-height: 110px;
+  display: flex;
+  min-height: 92px;
+  align-items: center;
+  gap: 14px;
   border-radius: 18px;
   padding: 18px;
   color: #0f172a;
   border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.64), 0 14px 34px rgba(32, 50, 92, 0.08);
+}
+
+.cohere-metric-card svg {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  padding: 9px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #0f62fe;
+  box-shadow: 0 12px 24px rgba(32, 50, 92, 0.08);
 }
 
 .cohere-metric-card p {
   color: rgba(15, 23, 42, 0.62);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
 }
 
 .cohere-metric-card strong {
   display: block;
-  margin-top: 16px;
-  font-size: 34px;
-  line-height: 1;
+  margin-top: 5px;
+  font-size: 22px;
+  line-height: 1.15;
 }
 
 .tone-blue {
@@ -568,30 +599,60 @@ html {
 
 .cohere-orbit {
   position: relative;
-  min-height: 320px;
+  min-height: 300px;
   overflow: hidden;
   border-radius: 22px;
   background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px),
     radial-gradient(circle at center, rgba(15, 98, 254, 0.14), transparent 32%),
     linear-gradient(135deg, #0b1220, #101b35 56%, #123d46);
+  background-size: 48px 48px, 48px 48px, auto, auto;
 }
 
-.cohere-orbit::before,
-.cohere-orbit::after {
+.cohere-orbit::before {
   content: "";
   position: absolute;
-  inset: 42px;
+  inset: 28px;
   border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 999px;
+  border-radius: 24px;
 }
 
-.cohere-orbit::after {
-  inset: 82px;
+.cohere-flow-map {
+  position: relative;
+  z-index: 1;
+  min-height: 300px;
+  padding: 28px;
 }
 
-.cohere-core,
-.cohere-node {
+.cohere-flow-map::before,
+.cohere-flow-map::after {
+  content: "";
   position: absolute;
+  z-index: 0;
+  left: 18%;
+  right: 18%;
+  top: 50%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(45, 212, 191, 0), rgba(45, 212, 191, 0.74), rgba(15, 98, 254, 0.74), rgba(45, 212, 191, 0));
+  transform: translateY(-50%);
+}
+
+.cohere-flow-map::after {
+  left: 50%;
+  right: auto;
+  top: 22%;
+  bottom: 22%;
+  width: 2px;
+  height: auto;
+  background: linear-gradient(180deg, rgba(45, 212, 191, 0), rgba(255, 255, 255, 0.34), rgba(45, 212, 191, 0));
+  transform: translateX(-50%);
+}
+
+.cohere-flow-card,
+.cohere-flow-core {
+  position: absolute;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -599,18 +660,70 @@ html {
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.22);
 }
 
-.cohere-core {
+.cohere-flow-card {
+  width: 116px;
+  min-height: 62px;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 800;
+  backdrop-filter: blur(14px);
+}
+
+.cohere-flow-card-a {
+  left: 28px;
+  top: 56px;
+}
+
+.cohere-flow-card-b {
+  left: 28px;
+  bottom: 56px;
+}
+
+.cohere-flow-card-c {
+  right: 28px;
+  top: 56px;
+}
+
+.cohere-flow-card-d {
+  right: 28px;
+  bottom: 56px;
+}
+
+.cohere-flow-card svg {
+  color: #69e6d6;
+}
+
+.cohere-flow-core {
   top: 50%;
   left: 50%;
-  width: 132px;
-  height: 132px;
+  width: 142px;
+  min-height: 142px;
   flex-direction: column;
   gap: 8px;
   transform: translate(-50%, -50%);
   border: 1px solid rgba(255, 255, 255, 0.24);
-  border-radius: 34px;
-  background: linear-gradient(135deg, rgba(15, 98, 254, 0.92), rgba(45, 212, 191, 0.86));
-  font-weight: 800;
+  border-radius: 36px;
+  background:
+    radial-gradient(circle at 50% 10%, rgba(255, 255, 255, 0.22), transparent 34%),
+    linear-gradient(135deg, rgba(15, 98, 254, 0.94), rgba(45, 212, 191, 0.88));
+}
+
+.cohere-flow-core strong {
+  font-size: 20px;
+  font-weight: 850;
+}
+
+.cohere-flow-core span {
+  color: rgba(255, 255, 255, 0.78);
+  max-width: 96px;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: uppercase;
 }
 
 .cohere-node {
@@ -641,40 +754,70 @@ html {
 
 .cohere-stage-list {
   display: grid;
-  gap: 12px;
+  grid-template-columns: 1fr;
+  gap: 10px;
   align-content: center;
 }
 
 .cohere-stage-item {
+  position: relative;
+  min-height: 56px;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.76);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.82);
   padding: 14px;
+  box-shadow: 0 12px 28px rgba(32, 50, 92, 0.08);
+}
+
+.cohere-stage-item::before {
+  content: "";
+  position: absolute;
+  inset: 10px auto 10px 10px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #0f62fe, #2dd4bf);
 }
 
 .cohere-stage-meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  justify-content: flex-start;
+  gap: 10px;
   color: #26354f;
   font-size: 13px;
-  font-weight: 720;
+  font-weight: 780;
+  padding-left: 8px;
 }
 
 .cohere-stage-meta span {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
   align-items: center;
-  gap: 8px;
+  min-width: 0;
 }
 
 .cohere-stage-meta svg {
-  color: #18a380;
+  grid-row: 1 / span 2;
+  color: #0f62fe;
+}
+
+.cohere-stage-meta strong {
+  color: #172033;
+  font-size: 13px;
+  line-height: 1.1;
+  white-space: normal;
 }
 
 .cohere-stage-meta em {
-  color: #0f62fe;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 750;
   font-style: normal;
+  line-height: 1.1;
+  text-transform: uppercase;
+  white-space: normal;
 }
 
 .cohere-stage-track {
@@ -1403,13 +1546,54 @@ html {
     flex-direction: column;
   }
 
+  .cohere-stage-list {
+    grid-template-columns: 1fr;
+  }
+
   .cohere-orbit {
     min-height: 260px;
   }
 
-  .cohere-core {
+  .cohere-flow-map {
+    min-height: 360px;
+    padding: 22px;
+  }
+
+  .cohere-flow-map::before,
+  .cohere-flow-map::after {
+    display: none;
+  }
+
+  .cohere-flow-card {
     width: 112px;
-    height: 112px;
+    min-height: 56px;
+  }
+
+  .cohere-flow-card-a {
+    left: 22px;
+    top: 24px;
+  }
+
+  .cohere-flow-card-b {
+    left: 22px;
+    bottom: 24px;
+  }
+
+  .cohere-flow-card-c {
+    right: 22px;
+    top: 24px;
+  }
+
+  .cohere-flow-card-d {
+    right: 22px;
+    bottom: 24px;
+  }
+
+  .cohere-flow-core {
+    left: 50%;
+    top: 50%;
+    width: 126px;
+    min-height: 128px;
   }
 
   .cohere-feature-section,

@@ -1,27 +1,60 @@
 import { useNavigate } from "react-router-dom";
 import {
-  Activity,
   ArrowRight,
   BrainCircuit,
-  CheckCircle2,
   DatabaseZap,
+  FileSearch,
+  Layers3,
   Network,
+  ScanLine,
   ShieldCheck,
+  UploadCloud,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { useAuth } from "../contexts/AuthContext";
 
-const metrics = [
-  { label: "Federated sessions", value: "12", tone: "blue" },
-  { label: "Ready datasets", value: "3.8k", tone: "cyan" },
-  { label: "Domain confidence", value: "94%", tone: "violet" },
+const workspaceCards = [
+  {
+    icon: Network,
+    label: "Create",
+    title: "Session",
+    tone: "blue",
+  },
+  {
+    icon: UploadCloud,
+    label: "Prepare",
+    title: "Labeling",
+    tone: "cyan",
+  },
+  {
+    icon: FileSearch,
+    label: "Review",
+    title: "AI Review",
+    tone: "violet",
+  },
 ];
 
-const stages = [
-  { label: "Upload screened", value: 92 },
-  { label: "Client hello", value: 76 },
-  { label: "Local fit", value: 61 },
-  { label: "FedAvg queued", value: 38 },
+const workflowItems = [
+  {
+    icon: UploadCloud,
+    label: "Data",
+    meta: "Local",
+  },
+  {
+    icon: ScanLine,
+    label: "Auto Label",
+    meta: "CheXpert",
+  },
+  {
+    icon: Layers3,
+    label: "Model",
+    meta: "Merge",
+  },
+  {
+    icon: FileSearch,
+    label: "Report",
+    meta: "AI Draft",
+  },
 ];
 
 export function HeroSection() {
@@ -75,47 +108,69 @@ export function HeroSection() {
           <div className="cohere-dashboard-shell">
             <div className="cohere-dashboard-header">
               <div>
-                <p>Live session intelligence</p>
-                <h2>Federated round monitor</h2>
+                <p>Workspace preview</p>
+                <h2>Private learning flow</h2>
               </div>
-              <span>Round 03 / 05</span>
+              <span>Local-first</span>
             </div>
 
             <div className="cohere-metrics-grid">
-              {metrics.map((metric) => (
-                <article key={metric.label} className={`cohere-metric-card tone-${metric.tone}`}>
-                  <p>{metric.label}</p>
-                  <strong>{metric.value}</strong>
-                </article>
-              ))}
+              {workspaceCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <article key={card.label} className={`cohere-metric-card tone-${card.tone}`}>
+                    <Icon className="h-5 w-5" />
+                    <div>
+                      <p>{card.label}</p>
+                      <strong>{card.title}</strong>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
 
             <div className="cohere-main-visual">
               <div className="cohere-orbit">
-                <div className="cohere-node cohere-node-a">X-ray</div>
-                <div className="cohere-node cohere-node-b">Fundus</div>
-                <div className="cohere-node cohere-node-c">AI</div>
-                <div className="cohere-core">
-                  <Activity className="h-7 w-7" />
-                  FedAvg
+                <div className="cohere-flow-map">
+                  <div className="cohere-flow-card cohere-flow-card-a">
+                    <UploadCloud className="h-5 w-5" />
+                    <span>Local Data</span>
+                  </div>
+                  <div className="cohere-flow-card cohere-flow-card-b">
+                    <ScanLine className="h-5 w-5" />
+                    <span>Labeling</span>
+                  </div>
+                  <div className="cohere-flow-core">
+                    <Network className="h-8 w-8" />
+                    <strong>HELIOS</strong>
+                    <span>Private Workspace</span>
+                  </div>
+                  <div className="cohere-flow-card cohere-flow-card-c">
+                    <Layers3 className="h-5 w-5" />
+                    <span>Model</span>
+                  </div>
+                  <div className="cohere-flow-card cohere-flow-card-d">
+                    <FileSearch className="h-5 w-5" />
+                    <span>AI Report</span>
+                  </div>
                 </div>
               </div>
 
               <div className="cohere-stage-list">
-                {stages.map((stage, index) => (
-                  <div key={stage.label} className="cohere-stage-item">
-                    <div className="cohere-stage-meta">
-                      <span>
-                        <CheckCircle2 className="h-4 w-4" />
-                        {stage.label}
-                      </span>
-                      <em>{stage.value}%</em>
+                {workflowItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.label} className="cohere-stage-item">
+                      <div className="cohere-stage-meta">
+                        <span>
+                          <Icon className="h-4 w-4" />
+                          <strong>{item.label}</strong>
+                          <em>{item.meta}</em>
+                        </span>
+                      </div>
                     </div>
-                    <div className="cohere-stage-track">
-                      <div style={{ width: `${stage.value}%` }} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>

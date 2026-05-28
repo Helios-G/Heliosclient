@@ -36,12 +36,12 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/92 backdrop-blur">
-      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-[72px] w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Link
           to="/"
           className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f62fe]"
         >
-          <img src={logo} alt="HELIOS" className="h-10 w-auto object-contain" />
+          <img src={logo} alt="HELIOS" className="h-12 w-auto object-contain" />
         </Link>
 
         <nav className="hidden items-center gap-1 md:flex">
