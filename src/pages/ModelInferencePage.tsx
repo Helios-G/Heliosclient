@@ -42,6 +42,8 @@ interface ModelConfig {
   preprocess: (img: tf.Tensor3D) => tf.Tensor;
   // model.predict 결과 → 확률값 ([0,1] 범위). 모델이 이미 softmax/sigmoid 적용되어 있으면 identity.
   toProbs: (raw: tf.Tensor) => tf.Tensor;
+  // saliency 그래디언트 계산용 target score (saturation 회피 위해 모델 별 분리)
+  targetScore: (raw: tf.Tensor, classIdx: number) => tf.Scalar;
 }
 
 const MODEL_CONFIGS: Record<ModelKind, ModelConfig> = {
@@ -66,6 +68,12 @@ const MODEL_CONFIGS: Record<ModelKind, ModelConfig> = {
       return norm.transpose([2, 0, 1]).expandDims(0); // [1, 3, 320, 320]
     }),
     toProbs: (raw) => raw.sigmoid(),
+    targetScore: (raw, c) => {
+      // CheXpert: logit → sigmoid; sigmoid 출력값을 target score 로 (정상 작동 검증됨)
+      // tf.grad 내부에서는 tidy 사용 금지 (tape backprop 에 필요한 중간 텐서가 dispose 될 수 있음)
+      const sliced = raw.slice([0, c], [1, 1]); // [1,1]
+      return sliced.sigmoid().sum() as tf.Scalar;
+    },
   },
   dr: {
     label: "DR (망막 fundus)",
@@ -83,6 +91,12 @@ const MODEL_CONFIGS: Record<ModelKind, ModelConfig> = {
       return norm.expandDims(0); // [1, 224, 224, 3]
     }),
     toProbs: (raw) => raw, // 모델 마지막 Dense에 softmax 포함
+    targetScore: (raw, c) => {
+      // DR: 출력이 이미 softmax 확률 → saturation 회피 위해 log-prob 사용
+      // log(p) 는 confidence 가 높을수록 0 에 가깝지만 gradient 는 1/p 로 살아있음
+      const sliced = raw.slice([0, c], [1, 1]); // [1,1]
+      return sliced.add(1e-7).log().sum() as tf.Scalar;
+    },
   },
 };
 
@@ -103,12 +117,11 @@ async function computeSaliencyMap(
   inputTensor: tf.Tensor,
   classIdx: number,
   layout: "nchw" | "nhwc",
-  toProbs: (raw: tf.Tensor) => tf.Tensor
+  targetScore: (raw: tf.Tensor, c: number) => tf.Scalar
 ): Promise<number[][]> {
   const gradFn = tf.grad((x: tf.Tensor) => {
     const raw = model.predict(x) as tf.Tensor;
-    const probs = toProbs(raw);
-    return probs.flatten().gather(tf.tensor1d([classIdx], "int32")).sum() as tf.Scalar;
+    return targetScore(raw, classIdx);
   });
 
   const grads = gradFn(inputTensor); // NCHW: [1,3,H,W] | NHWC: [1,H,W,3]
@@ -204,6 +217,7 @@ export function ModelInferencePage() {
   const [heatmapOverlayURL, setHeatmapOverlayURL] = useState<string | null>(null);
   const [heatmapMaskedURL, setHeatmapMaskedURL] = useState<string | null>(null);
   const [heatmapTargetClass, setHeatmapTargetClass] = useState<string>("");
+  const [heatmapError, setHeatmapError] = useState<string | null>(null);
 
   // Input Refs (숨겨진 input을 클릭하기 위함)
   const modelInputRef = useRef<HTMLInputElement>(null);
@@ -217,6 +231,7 @@ export function ModelInferencePage() {
     setHeatmapOverlayURL(null);
     setHeatmapMaskedURL(null);
     setHeatmapTargetClass("");
+    setHeatmapError(null);
   };
 
   const switchModelKind = (next: ModelKind) => {
@@ -345,6 +360,7 @@ export function ModelInferencePage() {
       setResults(chartData);
 
       // Grad-CAM 스타일 heatmap: 가장 높은 확률 클래스(baselineClass 제외)에 대해 생성
+      setHeatmapError(null);
       try {
         const topAbnormal = probsArr
           .map((score, i) => ({ score, i }))
@@ -352,13 +368,21 @@ export function ModelInferencePage() {
           .sort((a, b) => b.score - a.score)[0];
 
         if (topAbnormal && imageElementRef.current) {
+          console.log("[Heatmap] target class:", cfg.classes[topAbnormal.i], "score:", topAbnormal.score);
           const saliency = await computeSaliencyMap(
             model,
             tensor,
             topAbnormal.i,
             cfg.layout,
-            cfg.toProbs
+            cfg.targetScore
           );
+          // saliency 가 전부 0 에 가까우면 saturation 발생한 것
+          const flat = saliency.flat();
+          const maxV = Math.max(...flat);
+          console.log("[Heatmap] saliency max:", maxV, "size:", saliency.length, "x", saliency[0]?.length);
+          if (!isFinite(maxV) || maxV <= 0) {
+            throw new Error(`saliency map 값이 0 또는 비유효 (max=${maxV}). 모델 출력 saturation 가능성.`);
+          }
           const { overlayURL, maskedURL } = renderHeatmapOverlay(
             imageElementRef.current,
             saliency,
@@ -369,10 +393,12 @@ export function ModelInferencePage() {
           setHeatmapMaskedURL(maskedURL);
           setHeatmapTargetClass(cfg.classes[topAbnormal.i]);
         }
-      } catch (camErr) {
-        console.warn("Heatmap 생성 실패:", camErr);
+      } catch (camErr: any) {
+        console.error("[Heatmap] 생성 실패:", camErr);
         setHeatmapOverlayURL(null);
         setHeatmapMaskedURL(null);
+        setHeatmapTargetClass("");
+        setHeatmapError(camErr?.message ?? String(camErr));
       }
 
       tf.dispose(tensor);
@@ -623,6 +649,20 @@ export function ModelInferencePage() {
                       {results[0].score < 50 && " (확률이 낮아 정상일 가능성이 높습니다.)"}
                     </p>
                   </div>
+
+                  {/* Heatmap 생성 실패 메시지 */}
+                  {heatmapError && (
+                    <div className="mt-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
+                      <h4 className="font-bold text-red-700 mb-2 flex items-center gap-2">
+                        <AlertCircle className="w-5 h-5" />
+                        Heatmap 생성 실패
+                      </h4>
+                      <p className="text-xs text-red-700 break-all">{heatmapError}</p>
+                      <p className="text-[11px] text-red-500 mt-2">
+                        브라우저 개발자 도구 콘솔에서 자세한 스택 트레이스를 확인할 수 있습니다.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Grad-CAM 시각화: 모델 주목 영역 */}
                   {(heatmapOverlayURL || heatmapMaskedURL) && (
