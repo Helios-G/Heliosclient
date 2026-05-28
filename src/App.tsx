@@ -12,6 +12,7 @@ import { SessionDetailPage } from "./pages/SessionDetailPage";
 import { SessionJoinPage } from "./pages/SessionJoinPage";
 import { LabelingAutoPage } from "./pages/LabelingAutoPage";
 import { LabelingManualPage } from "./pages/LabelingManualPage";
+import { LabelingSegmentationPage } from "./pages/LabelingSegmentationPage";
 import { SessionTrainingPage } from "./pages/SessionTrainingPage";
 import { SessionResultsPage } from "./pages/SessionResultsPage";
 import { ModelDownloadPage } from "./pages/ModelDownloadPage";
@@ -50,6 +51,7 @@ export default function App() {
                 {/* 라벨링 & 학습 */}
                 <Route path="/session/:sessionId/labeling/auto" element={<ProtectedRoute><LabelingAutoPage /></ProtectedRoute>} />
                 <Route path="/session/:sessionId/labeling/manual" element={<ProtectedRoute><LabelingManualPage /></ProtectedRoute>} />
+                <Route path="/session/:sessionId/labeling/segmentation" element={<ProtectedRoute><LabelingSegmentationPage /></ProtectedRoute>} />
                 <Route path="/session/:sessionId/training" element={<ProtectedRoute><SessionTrainingPage /></ProtectedRoute>} />
                 <Route path="/session/:sessionId/results" element={<ProtectedRoute><SessionResultsPage /></ProtectedRoute>} />
                 

@@ -14,6 +14,8 @@ import { useTrainingData } from "../contexts/TrainingDataContext";
 import { useSession } from "../contexts/SessionContext";
 import { authFetch } from "../lib/authFetch";
 import { normalizeSessionDomain } from "../lib/domainScreening";
+import { readApiData } from "../lib/api";
+import { inferTaskType, SEGMENTATION_TASK } from "../lib/taskTypes";
 
 type TrainingStatus = "preparing" | "training" | "waiting" | "completed";
 
@@ -46,6 +48,8 @@ export function SessionTrainingPage() {
   const [startTime] = useState(new Date().toLocaleString());
   const lastMetricsRef = useRef({ acc: 0, loss: 0 });
   const currentRoundRef = useRef(0);
+  const taskType = screeningMeta?.taskType ?? inferTaskType(sessionMeta);
+  const metricLabel = taskType === SEGMENTATION_TASK ? "Dice" : "Accuracy";
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -60,7 +64,7 @@ export function SessionTrainingPage() {
         const response = await authFetch(`/sessions/${sessionId}`);
         if (!response.ok) return;
 
-        const serverSession = await response.json();
+        const serverSession = await readApiData<any>(response);
         const normalizedSession = {
           id: String(serverSession.sessionId ?? sessionId),
           title: serverSession.title ?? session?.title ?? "제목 없음",
@@ -120,7 +124,7 @@ export function SessionTrainingPage() {
     setLogMessage("다른 참여자를 기다리는 중...");
 
     try {
-      const client = new MyFlowerClient();
+      const client = new MyFlowerClient({ taskType });
       const flwr = new Flwr();
 
       flwr.setStatusCallback((message: { currentRound?: number; totalRounds?: number; progress?: number }) => {
@@ -142,7 +146,7 @@ export function SessionTrainingPage() {
 
         setTrainingData((prev) => {
           const completedRound = currentRoundRef.current || prev.length + 1;
-          setLogMessage(`Round ${completedRound} 완료: 정확도 ${(acc * 100).toFixed(2)}%`);
+          setLogMessage(`Round ${completedRound} 완료: ${metricLabel} ${(acc * 100).toFixed(2)}%`);
 
           return [
             ...prev,
@@ -162,6 +166,8 @@ export function SessionTrainingPage() {
         detectedDomain: screeningMeta?.detectedDomain ?? normalizeSessionDomain(sessionMeta?.dataType),
         domainScore: screeningMeta?.domainScore ?? 1,
         sampleCount: screeningMeta?.sampleCount ?? xTrain.shape[0] + xTest.shape[0],
+        taskType,
+        maskShape: screeningMeta?.maskShape ?? (taskType === SEGMENTATION_TASK ? yTrain.shape.slice(1) : []),
       });
       
       const userToken = user?.id?.toString();
@@ -185,6 +191,7 @@ export function SessionTrainingPage() {
         rounds: totalRounds,
         startTime: startTime,
         endTime: new Date().toLocaleString(),
+        metricLabel,
       };
 
       if (setFinalMetrics) {
@@ -211,26 +218,27 @@ export function SessionTrainingPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4 bg-white">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-[#f6f8fb] px-4 py-12">
+      <div className="mx-auto max-w-7xl">
         <div className="mb-12">
-          <h1 className="text-gray-800 text-2xl font-bold">
+          <p className="clinical-kicker mb-2">Training Monitor</p>
+          <h1 className="text-3xl font-semibold text-slate-950">
             {status === "preparing" && "학습 준비"}
             {status === "waiting" && "참여자 대기 중"}
             {status === "training" && "실시간 연합학습 진행 중 (Real-time)"}
             {status === "completed" && "학습 완료"}
           </h1>
-          <p className="text-gray-500 mt-2">시스템 로그: {logMessage}</p>
+          <p className="mt-2 rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">시스템 로그: {logMessage}</p>
         </div>
 
         {status === "preparing" && (
           <div className="space-y-6">
-            <Card className="p-8 border-2" style={{ backgroundColor: "#FFF9F5" }}>
-              <h3 className="mb-4 text-xl font-bold" style={{ color: "#6B3131" }}>
+            <Card className="clinical-panel p-8 shadow-none">
+              <h3 className="mb-4 text-xl font-semibold text-slate-950">
                 학습 준비 완료
               </h3>
-              <div className="space-y-2 text-gray-700">
-                <p>• 데이터 전처리 및 오토라벨링이 완료되었습니다.</p>
+              <div className="space-y-2 text-slate-700">
+                <p>• 데이터 전처리 및 라벨링이 완료되었습니다.</p>
                 <p>
                   • 학습 데이터 상태:{" "}
                   {xTrain && xTest ? (
@@ -248,8 +256,7 @@ export function SessionTrainingPage() {
 
             <div className="flex justify-center">
               <Button
-                style={{ backgroundColor: "#6B3131" }}
-                className="text-white hover:opacity-90 px-12 py-8 text-lg font-bold rounded-xl shadow-lg transition-transform hover:scale-105"
+                className="rounded-md bg-[#0f62fe] px-12 py-8 text-lg font-semibold text-white shadow-lg transition-transform hover:scale-[1.02] hover:bg-[#0043ce]"
                 onClick={startTraining}
               >
                 🚀 연합학습 시작하기
@@ -260,19 +267,19 @@ export function SessionTrainingPage() {
 
         {status === "waiting" && (
           <div className="space-y-6">
-            <Card className="p-8 border-2" style={{ backgroundColor: "#FFF9F5" }}>
+            <Card className="clinical-panel p-8 shadow-none">
               <div className="text-center space-y-4">
                 <div className="text-5xl animate-pulse">⏳</div>
-                <h3 className="text-xl font-bold" style={{ color: "#6B3131" }}>
+                <h3 className="text-xl font-semibold text-slate-950">
                   다른 참여자를 기다리는 중...
                 </h3>
                 <p className="text-gray-600">
                   현재 참여자:{" "}
-                  <span className="font-bold text-orange-500">
+                  <span className="font-semibold text-[#0f62fe]">
                     {currentParticipants} / {targetParticipants}명
                   </span>
                 </p>
-                <p className="text-gray-500 text-sm">
+                <p className="text-sm text-slate-500">
                   목표 인원이 모이면 자동으로 학습이 시작됩니다.
                 </p>
               </div>
@@ -282,13 +289,13 @@ export function SessionTrainingPage() {
 
         {status === "training" && (
           <div className="space-y-8">
-            <Card className="p-8 border-2 shadow-md">
+            <Card className="clinical-panel p-8 shadow-none">
               <div className="mb-6 flex justify-between items-center">
                 <div>
-                  <h3 className="mb-2 text-xl font-bold" style={{ color: "#6B3131" }}>
+                  <h3 className="mb-2 text-xl font-semibold text-slate-950">
                     현재 Round: {currentRound}
                   </h3>
-                  <p className="text-sm text-gray-500">총 {totalRounds} 라운드</p>
+                  <p className="text-sm text-slate-500">총 {totalRounds} 라운드</p>
                   <p className="text-gray-600">서버와 통신하며 모델을 학습시키고 있습니다...</p>
                 </div>
                 <div className="animate-pulse bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-bold">
@@ -297,8 +304,8 @@ export function SessionTrainingPage() {
               </div>
 
               <div className="mb-8">
-                <h4 className="mb-4 font-semibold" style={{ color: "#6B3131" }}>
-                  정확도 (Accuracy)
+                <h4 className="mb-4 font-semibold text-slate-950">
+                  {metricLabel} ({taskType === SEGMENTATION_TASK ? "Segmentation" : "Classification"})
                 </h4>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={trainingData} margin={{ top: 5, right: 30, left: 20, bottom: 25 }}>
@@ -309,16 +316,16 @@ export function SessionTrainingPage() {
                       domain={[1, "auto"]}
                       allowDecimals={false}
                     />
-                    <YAxis domain={[0, 1]} label={{ value: "Accuracy", angle: -90, position: "insideLeft" }} />
+                    <YAxis domain={[0, 1]} label={{ value: metricLabel, angle: -90, position: "insideLeft" }} />
                     <Tooltip />
                     <Legend verticalAlign="top" height={36} />
                     <Line
                       type="monotone"
                       dataKey="accuracy"
-                      stroke="#FF9500"
+                      stroke="#0f62fe"
                       strokeWidth={3}
-                      name="정확도"
-                      dot={{ fill: "#FF9500", r: 4 }}
+                      name={metricLabel}
+                      dot={{ fill: "#0f62fe", r: 4 }}
                       isAnimationActive={false}
                     />
                   </LineChart>
@@ -326,7 +333,7 @@ export function SessionTrainingPage() {
               </div>
 
               <div>
-                <h4 className="mb-4 font-semibold" style={{ color: "#6B3131" }}>
+                <h4 className="mb-4 font-semibold text-slate-950">
                   손실 (Loss)
                 </h4>
                 <ResponsiveContainer width="100%" height={300}>
@@ -343,10 +350,10 @@ export function SessionTrainingPage() {
                     <Line
                       type="monotone"
                       dataKey="loss"
-                      stroke="#6B3131"
+                      stroke="#101828"
                       strokeWidth={3}
                       name="손실"
-                      dot={{ fill: "#6B3131", r: 4 }}
+                      dot={{ fill: "#101828", r: 4 }}
                       isAnimationActive={false}
                     />
                   </LineChart>
@@ -370,8 +377,7 @@ export function SessionTrainingPage() {
                 세션 목록으로
               </Button>
               <Button
-                style={{ backgroundColor: "#FF9500" }}
-                className="text-white hover:opacity-90 px-12 py-6 font-bold"
+                className="bg-[#0f62fe] px-12 py-6 font-semibold text-white hover:bg-[#0043ce]"
                 onClick={viewResults}
               >
                 결과 상세 리포트 보기

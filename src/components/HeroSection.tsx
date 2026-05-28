@@ -1,88 +1,124 @@
-import { Button } from "./ui/button";
-import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useNavigate } from "react-router-dom";
+import {
+  Activity,
+  ArrowRight,
+  BrainCircuit,
+  CheckCircle2,
+  DatabaseZap,
+  Network,
+  ShieldCheck,
+} from "lucide-react";
+import { Button } from "./ui/button";
 import { useAuth } from "../contexts/AuthContext";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+
+const metrics = [
+  { label: "Federated sessions", value: "12", tone: "blue" },
+  { label: "Ready datasets", value: "3.8k", tone: "cyan" },
+  { label: "Domain confidence", value: "94%", tone: "violet" },
+];
+
+const stages = [
+  { label: "Upload screened", value: 92 },
+  { label: "Client hello", value: 76 },
+  { label: "Local fit", value: 61 },
+  { label: "FedAvg queued", value: 38 },
+];
 
 export function HeroSection() {
   const navigate = useNavigate();
   const { isLoggedIn } = useAuth();
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-  const backgroundImages = [
-    "https://images.unsplash.com/photo-1683225831293-6d289c20e963?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoYW5kcyUyMHRvdWNoaW5nJTIwdGVjaG5vbG9neSUyMGFpfGVufDF8fHx8MTc2NDg0OTgyMHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    "https://images.unsplash.com/photo-1758202292826-c40e172eed1c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxtZWRpY2FsJTIwQUklMjB0ZWNobm9sb2d5fGVufDF8fHx8MTc2NDg1MDMwNXww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
-    "https://images.unsplash.com/photo-1758691463203-cce9d415b2b5?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxoZWFsdGhjYXJlJTIwZGlnaXRhbCUyMGlubm92YXRpb258ZW58MXx8fHwxNzY0ODUwMzA1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-  ];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentImageIndex((prev) => (prev + 1) % backgroundImages.length);
-    }, 5000); // 5초마다 이미지 전환
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleSectionClick = (sectionId: string) => {
-    const element = document.getElementById(sectionId);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
-  };
-
-  const handleStartClick = () => {
-    if (isLoggedIn) {
-      navigate('/upload'); // 회원이면 학습 참여로
-    } else {
-      navigate('/signup'); // 비회원이면 회원가입으로
-    }
-  };
+  const startPath = isLoggedIn ? "/session/list" : "/signup";
 
   return (
-    <section className="relative min-h-[600px] flex items-center justify-center overflow-hidden">
-      {/* Background Image Slider */}
-      <div className="absolute inset-0">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentImageIndex}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
-            className="absolute inset-0"
-          >
-            <ImageWithFallback
-              src={backgroundImages[currentImageIndex]}
-              alt="AI Technology"
-              className="w-full h-full object-cover"
-            />
-          </motion.div>
-        </AnimatePresence>
-        <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-black/40"></div>
-      </div>
+    <section className="cohere-home-hero">
+      <div className="cohere-hero-inner">
+        <div className="cohere-hero-copy">
+          <div className="cohere-pill">
+            <BrainCircuit className="h-4 w-4" />
+            Medical AI collaboration layer
+          </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 relative z-10 text-center text-white">
-        <p className="mb-8 max-w-2xl mx-auto opacity-90">
-          HELIOS는 다양한 병원들이 참여하여 학습한<br />
-          의료진단 AI를 제공합니다.
-        </p>
-        <div className="flex gap-4 justify-center">
-          <Button 
-            style={{ backgroundColor: '#FF9500' }}
-            className="text-white hover:opacity-90 px-8 py-6"
-            onClick={handleStartClick}
-          >
-            시작하기
-          </Button>
-          <Button 
-            variant="outline"
-            className="bg-transparent text-white border-2 border-white hover:bg-white/10 px-8 py-6"
-            onClick={() => handleSectionClick('about')}
-          >
-            더 알아보기
-          </Button>
+          <h1>HELIOS</h1>
+          <p className="cohere-hero-lead">
+            병원 데이터는 브라우저에 남기고, 학습 신호만 모아 더 안전한 진단 AI를 만드는
+            연합학습 플랫폼.
+          </p>
+
+          <div className="cohere-hero-actions">
+            <Button className="cohere-primary-button" onClick={() => navigate(startPath)}>
+              {isLoggedIn ? "세션 콘솔 열기" : "기관 등록 시작"}
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button className="cohere-secondary-button" variant="outline" onClick={() => navigate("/playground")}>
+              AI 진단실 보기
+            </Button>
+          </div>
+
+          <div className="cohere-trust-row">
+            <span>
+              <ShieldCheck className="h-4 w-4" />
+              Institution access
+            </span>
+            <span>
+              <DatabaseZap className="h-4 w-4" />
+              Browser-local labeling
+            </span>
+            <span>
+              <Network className="h-4 w-4" />
+              Federated orchestration
+            </span>
+          </div>
+        </div>
+
+        <div className="cohere-dashboard" aria-label="HELIOS federated learning dashboard preview">
+          <div className="cohere-dashboard-glow" />
+          <div className="cohere-dashboard-shell">
+            <div className="cohere-dashboard-header">
+              <div>
+                <p>Live session intelligence</p>
+                <h2>Federated round monitor</h2>
+              </div>
+              <span>Round 03 / 05</span>
+            </div>
+
+            <div className="cohere-metrics-grid">
+              {metrics.map((metric) => (
+                <article key={metric.label} className={`cohere-metric-card tone-${metric.tone}`}>
+                  <p>{metric.label}</p>
+                  <strong>{metric.value}</strong>
+                </article>
+              ))}
+            </div>
+
+            <div className="cohere-main-visual">
+              <div className="cohere-orbit">
+                <div className="cohere-node cohere-node-a">X-ray</div>
+                <div className="cohere-node cohere-node-b">Fundus</div>
+                <div className="cohere-node cohere-node-c">AI</div>
+                <div className="cohere-core">
+                  <Activity className="h-7 w-7" />
+                  FedAvg
+                </div>
+              </div>
+
+              <div className="cohere-stage-list">
+                {stages.map((stage, index) => (
+                  <div key={stage.label} className="cohere-stage-item">
+                    <div className="cohere-stage-meta">
+                      <span>
+                        <CheckCircle2 className="h-4 w-4" />
+                        {stage.label}
+                      </span>
+                      <em>{stage.value}%</em>
+                    </div>
+                    <div className="cohere-stage-track">
+                      <div style={{ width: `${stage.value}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>

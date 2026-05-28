@@ -1,55 +1,31 @@
-export function GuideSection() {
-  const steps = [
-    {
-      number: "1",
-      title: "회원가입 신청",
-      description: "회원가입 시 신청 정보가 관리자에게 전달됩니다.\n승인절차는 영업일 기준 1~2일 소요됩니다."
-    },
-    {
-      number: "2",
-      title: "가입 승인",
-      description: "병원 증명 및 가입 승인이 완료되면 Helios의 서비스를 자유롭게 이용하실 수 있습니다."
-    },
-    {
-      number: "3",
-      title: "학습 참여하기, 모델 다운로드",
-      description: "세션에 참여하여 모델을 학습시키고, 배포된 모델을 다운로드 해 진단에 활용해보세요.\n학습에 참여하지 않아도 모델 사용이 가능합니다."
-    }
-  ];
+const steps = [
+  ["01", "Create", "세션 도메인, 참여 기관 수, 라운드 수를 정의합니다."],
+  ["02", "Label", "기관별 브라우저에서 의료 이미지를 라벨링하고 tensor를 준비합니다."],
+  ["03", "Train", "AI 서버가 클라이언트 fit과 FedAvg aggregation을 조율합니다."],
+  ["04", "Review", "결과와 진단 리포트 초안을 검토 가능한 형태로 정리합니다."],
+];
 
+export function GuideSection() {
   return (
-    <section id="guide" className="py-20" style={{ backgroundColor: '#FEF3F3' }}>
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="mb-4 text-gray-800">서비스 사용법</h2>
-          <p className="max-w-2xl mx-auto text-gray-700">
-            간단한 3단계로 HELIOS 서비스를 시작할 수 있습니다.
-          </p>
+    <section id="guide" className="cohere-flow-section">
+      <div className="cohere-flow-panel">
+        <div className="cohere-flow-copy">
+          <p>Clinical workflow</p>
+          <h2>데이터가 떠나지 않는 협업형 학습 루프</h2>
+          <span>
+            HELIOS의 메인 흐름은 세션 생성에서 진단 리뷰까지 이어지는 하나의 AI 운영 루프입니다.
+          </span>
         </div>
 
-        <div className="max-w-4xl mx-auto space-y-8">
-          {steps.map((step, index) => (
-            <div 
-              key={index}
-              className="flex items-start gap-6"
-            >
-              <div 
-                className="flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center"
-                style={{ backgroundColor: '#FF9500' }}
-              >
-                <span className="text-white text-2xl">
-                  {step.number}
-                </span>
+        <div className="cohere-flow-steps">
+          {steps.map(([number, title, description]) => (
+            <article key={number}>
+              <strong>{number}</strong>
+              <div>
+                <h3>{title}</h3>
+                <p>{description}</p>
               </div>
-              <div className="flex-1 pt-2">
-                <h3 className="mb-2 text-gray-800">
-                  {step.title}
-                </h3>
-                <p className="text-gray-600 whitespace-pre-line">
-                  {step.description}
-                </p>
-              </div>
-            </div>
+            </article>
           ))}
         </div>
       </div>

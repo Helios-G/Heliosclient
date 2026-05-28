@@ -50,6 +50,7 @@ import {
   Clock
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
+import { CohereMetricCard, CoherePage, CoherePageHeader } from "../components/CoherePage";
 
 // 타입 정의
 interface SignUpRequest {
@@ -234,17 +235,17 @@ export function AdminPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ backgroundColor: '#FFF5EB' }}>
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Shield className="w-8 h-8" style={{ color: '#FF9500' }} />
-            <h1 style={{ color: '#6B3131' }}>관리자 대시보드</h1>
-          </div>
-          <p className="text-gray-600">
-            HELIOS 시스템 전체를 관리합니다
-          </p>
+    <CoherePage wide>
+        <CoherePageHeader
+          eyebrow="Admin Control"
+          title="관리자 대시보드"
+          description="HELIOS 시스템의 가입 승인, 도메인 허용, 사용자 차단, 모델 검수를 관리합니다."
+        />
+
+        <div className="cohere-stat-grid mb-8">
+          <CohereMetricCard label="가입 대기" value={signUpRequests.filter((item) => item.status === "pending").length} caption="검토 필요" />
+          <CohereMetricCard label="허용 도메인" value={whitelists.length} caption="화이트리스트" tone="cyan" />
+          <CohereMetricCard label="모델 대기" value={uploadedModels.filter((item) => item.status === "pending").length} caption="승인 필요" tone="violet" />
         </div>
 
         {/* Tabs */}
@@ -270,8 +271,8 @@ export function AdminPage() {
 
           {/* 회원가입 승인 탭 */}
           <TabsContent value="signup">
-            <Card className="p-6 shadow-lg">
-              <h2 className="mb-4" style={{ color: '#6B3131' }}>회원가입 신청 목록</h2>
+            <Card className="cohere-surface p-6 shadow-none">
+              <h2 className="mb-4" style={{ color: '#071225' }}>회원가입 신청 목록</h2>
               <p className="text-sm text-gray-600 mb-6">
                 사용자의 회원가입 신청을 검토하고 승인/거부할 수 있습니다.
               </p>
@@ -328,12 +329,12 @@ export function AdminPage() {
 
           {/* 화이트리스트 탭 */}
           <TabsContent value="whitelist">
-            <Card className="p-6 shadow-lg">
+            <Card className="cohere-surface p-6 shadow-none">
               <div className="flex items-center justify-between mb-4">
-                <h2 style={{ color: '#6B3131' }}>이메일 도메인 화이트리스트</h2>
+                <h2 style={{ color: '#071225' }}>이메일 도메인 화이트리스트</h2>
                 <Dialog open={isWhitelistDialogOpen} onOpenChange={setIsWhitelistDialogOpen}>
                   <DialogTrigger asChild>
-                    <Button style={{ backgroundColor: '#FF9500' }} className="text-white gap-2">
+                    <Button className="cohere-gradient-button gap-2">
                       <Plus className="w-4 h-4" />
                       추가
                     </Button>
@@ -369,8 +370,8 @@ export function AdminPage() {
                       <Button variant="outline" onClick={() => setIsWhitelistDialogOpen(false)}>
                         취소
                       </Button>
-                      <Button 
-                        style={{ backgroundColor: '#FF9500' }} 
+                      <Button
+                        style={{ backgroundColor: '#0f62fe' }}
                         className="text-white"
                         onClick={handleAddWhitelist}
                       >
@@ -444,8 +445,8 @@ export function AdminPage() {
 
           {/* 차단 사용자 탭 */}
           <TabsContent value="blocked">
-            <Card className="p-6 shadow-lg">
-              <h2 className="mb-4" style={{ color: '#6B3131' }}>차단된 사용자</h2>
+            <Card className="cohere-surface p-6 shadow-none">
+              <h2 className="mb-4" style={{ color: '#071225' }}>차단된 사용자</h2>
               <p className="text-sm text-gray-600 mb-6">
                 서비스 이용이 차단된 사용자 목록입니다.
               </p>
@@ -498,7 +499,7 @@ export function AdminPage() {
                                   <AlertDialogCancel>취소</AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleUnblockUser(user.id)}
-                                    style={{ backgroundColor: '#FF9500' }}
+                                    style={{ backgroundColor: '#0f62fe' }}
                                     className="text-white"
                                   >
                                     차단 해제
@@ -518,8 +519,8 @@ export function AdminPage() {
 
           {/* 모델 관리 탭 */}
           <TabsContent value="models">
-            <Card className="p-6 shadow-lg">
-              <h2 className="mb-4" style={{ color: '#6B3131' }}>업로드된 모델 관리</h2>
+            <Card className="cohere-surface p-6 shadow-none">
+              <h2 className="mb-4" style={{ color: '#071225' }}>업로드된 모델 관리</h2>
               <p className="text-sm text-gray-600 mb-6">
                 사용자에서 업로드한 모델을 검토하고 승인/거부할 수 있습니다.
               </p>
@@ -584,7 +585,6 @@ export function AdminPage() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    </div>
+    </CoherePage>
   );
 }

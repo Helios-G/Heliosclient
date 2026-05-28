@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import type { HeliosTaskType } from '../lib/taskTypes';
 
 export interface Session {
   id: string;
   title: string;
   dataType: string;
   classNames: string[];
+  taskType?: HeliosTaskType;
   algorithm?: string; // 알고리즘 필드 추가
   rounds: number;
   createdAt: string;

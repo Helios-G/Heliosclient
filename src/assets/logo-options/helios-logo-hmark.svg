@@ -1,0 +1,21 @@
+<svg width="520" height="156" viewBox="0 0 520 156" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">HELIOS H Mark Logo</title>
+  <desc id="desc">A compact H monogram with HELIOS wordmark.</desc>
+  <rect width="520" height="156" rx="32" fill="#FFFFFF"/>
+  <g transform="translate(30 28)">
+    <rect width="100" height="100" rx="24" fill="#EEF6FF"/>
+    <path d="M29 25H43V47H57V25H71V75H57V59H43V75H29V25Z" fill="url(#paint0_linear)"/>
+    <path d="M21 82C37 94 65 94 81 82" stroke="#2DD4BF" stroke-width="6" stroke-linecap="round"/>
+    <path d="M21 18C37 6 65 6 81 18" stroke="#0F62FE" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <g transform="translate(154 40)">
+    <text x="0" y="47" fill="#071225" font-family="Inter, Arial, sans-serif" font-size="48" font-weight="800" letter-spacing="1.5">HELIOS</text>
+    <text x="2" y="78" fill="#526178" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="600">Medical AI Collaboration Platform</text>
+  </g>
+  <defs>
+    <linearGradient id="paint0_linear" x1="29" y1="25" x2="75" y2="75" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F62FE"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -25,6 +25,9 @@ import { useSession } from "../contexts/SessionContext";
 import { authFetch } from "../lib/authFetch";
 import { normalizeSessionDomain, screenFilesForSessionDomain, type DomainScreeningResult } from "../lib/domainScreening";
 import { ensureGpuBackend } from "../lib/tfBackend";
+import { readApiData } from "../lib/api";
+import { CohereMetricCard, CoherePage, CoherePageHeader } from "../components/CoherePage";
+import { CLASSIFICATION_TASK } from "../lib/taskTypes";
 
 interface ImageFile {
   filename: string;
@@ -76,7 +79,7 @@ export function LabelingManualPage() {
       try {
         const response = await authFetch(`/sessions/${sessionId}`);
         if (response.ok) {
-          const serverSession = await response.json();
+          const serverSession = await readApiData<any>(response);
           setSessionData(serverSession);
           upsertSession({
             id: String(serverSession.sessionId ?? sessionId),
@@ -391,6 +394,8 @@ export function LabelingManualPage() {
           detectedDomain: domainCheckResult?.detectedDomain ?? "xray",
           domainScore: domainCheckResult?.compatibilityScore ?? 1,
           sampleCount: xTensors.length,
+          taskType: CLASSIFICATION_TASK,
+          metricLabel: "Accuracy",
         });
       }
     } catch (error) {
@@ -416,41 +421,49 @@ export function LabelingManualPage() {
   // --- 1. 파일 선택 단계 ---
   if (step === "select") {
     return (
-      <div className="min-h-screen py-12 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold text-gray-800 mb-8">수동 라벨링 - 데이터 선택</h1>
-          <Card className="p-12 border-2 border-dashed text-center">
-            <Folder className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <h3 className="mb-2">데이터 폴더 선택</h3>
-            <p className="text-gray-600 mb-6">라벨링할 이미지 파일들이 있는 폴더를 선택하세요</p>
+      <CoherePage>
+          <CoherePageHeader
+            eyebrow="Manual Labeling"
+            title="수동 라벨링"
+            description="라벨링할 이미지 폴더를 선택하고 검수 중심으로 데이터를 준비하세요."
+          />
+          <div className="cohere-upload-zone">
+            <div>
+            <Folder className="mx-auto mb-5 h-16 w-16" />
+            <h3 className="cohere-section-title mb-2">데이터 폴더 선택</h3>
+            <p className="mx-auto mb-7 max-w-lg text-slate-600">라벨링할 이미지 파일들이 있는 폴더를 선택하세요.</p>
             <input ref={fileInputRef} type="file" 
               // @ts-ignore
               webkitdirectory="" directory="" multiple onChange={handleFileSelect} className="hidden" />
-            <Button onClick={() => fileInputRef.current?.click()} style={{ backgroundColor: '#FF9500' }} className="text-white hover:opacity-90">
-              <Folder className="w-4 h-4 mr-2" /> 폴더 선택
+            <Button onClick={() => fileInputRef.current?.click()} className="cohere-gradient-button cohere-folder-button h-12 px-7">
+              <Folder className="h-5 w-5" />
+              <span>폴더 선택</span>
             </Button>
-          </Card>
-        </div>
-      </div>
+            </div>
+          </div>
+      </CoherePage>
     );
   }
 
   // --- 2. 라벨링 단계 ---
   if (step === "labeling") {
     return (
-      <div className="min-h-screen py-12 px-4 bg-white">
-        <div className="max-w-6xl mx-auto">
-          <div className="mb-6">
-            <h1 className="text-gray-800">수동 라벨링 진행</h1>
-            <div className="flex items-center gap-4 mt-4">
+      <CoherePage wide>
+          <CoherePageHeader
+            eyebrow="Manual Workbench"
+            title="수동 라벨링 진행"
+            description={`${labeledCount} / ${images.length}개 이미지 라벨링 완료`}
+          />
+          <div className="cohere-surface mb-6 p-5">
+            <div className="flex items-center gap-4">
               <Progress value={progress} className="flex-1" />
               <span className="text-sm text-gray-700 whitespace-nowrap">{labeledCount} / {images.length} 완료</span>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <Card className="p-6 border-2">
+          <div className="cohere-workbench-grid">
+            <div>
+              <Card className="cohere-inspector">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-gray-800">이미지 {currentIndex + 1} / {images.length}</h3>
                   {currentImage?.label && (
@@ -459,7 +472,7 @@ export function LabelingManualPage() {
                     </Badge>
                   )}
                 </div>
-                <div className="bg-gray-100 rounded-lg mb-4 aspect-square overflow-hidden">
+                <div className="cohere-image-stage mb-4 aspect-square">
                   <img src={currentImage?.imageUrl} alt={currentImage?.filename} className="w-full h-full object-contain" />
                 </div>
                 <div className="flex gap-2">
@@ -474,7 +487,7 @@ export function LabelingManualPage() {
             </div>
 
             <div className="space-y-4">
-              <Card className="p-6 border-2">
+              <Card className="cohere-inspector">
                 <h3 className="mb-4">라벨 선택</h3>
                 <div className="space-y-2">
                   {CHEXPERT_LABELS.map((className) => (
@@ -482,8 +495,7 @@ export function LabelingManualPage() {
                       key={className}
                       onClick={() => handleSaveLabel(className)}
                       variant={currentImage?.label === className ? "default" : "outline"}
-                      className="w-full justify-start text-left"
-                      style={currentImage?.label === className ? { backgroundColor: '#FF9500', color: 'white' } : {}}
+                      className={currentImage?.label === className ? "w-full justify-start text-left bg-[#0f62fe] text-white hover:bg-[#0043ce]" : "w-full justify-start text-left"}
                     >
                       {currentImage?.label === className && <Check className="w-4 h-4 mr-2" />}
                       {className}
@@ -491,13 +503,12 @@ export function LabelingManualPage() {
                   ))}
                 </div>
               </Card>
-              
+
               {unlabeledCount > 0 && (
-                <Button 
-                    variant="outline" 
-                    onClick={handleAutoLabelRemaining} 
-                    className="w-full border-2" 
-                    style={{ borderColor: '#6B3131', color: '#6B3131' }}
+                <Button
+                    variant="outline"
+                    onClick={handleAutoLabelRemaining}
+                    className="h-12 w-full border-slate-300 bg-white/80"
                     disabled={isProcessing || !model}
                 >
                   {isProcessing ? (
@@ -511,41 +522,46 @@ export function LabelingManualPage() {
           </div>
 
           <div className="flex gap-4 justify-center mt-8">
-            <Button onClick={handleGoToReview} style={{ backgroundColor: '#6B3131' }} className="text-white hover:opacity-90 px-8 py-6" disabled={unlabeledCount > 0}>
+            <Button onClick={handleGoToReview} className="cohere-gradient-button px-8 py-6" disabled={unlabeledCount > 0}>
               <Check className="w-4 h-4 mr-2" /> 라벨링 완료 및 결과 검수
             </Button>
           </div>
-        </div>
-      </div>
+      </CoherePage>
     );
   }
 
   // --- 3. 검수(Review) 단계 ---
   return (
-    <div className="min-h-screen py-12 px-4 bg-white">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">라벨링 결과 검수</h1>
-            <p className="text-gray-600 mt-1">총 {images.length}개 이미지 라벨링 완료</p>
-          </div>
-          <div className="flex gap-2">
-            <Button variant={viewMode === "1x1" ? "default" : "outline"} onClick={() => { setViewMode("1x1"); setCurrentPage(0); }} style={viewMode === "1x1" ? { backgroundColor: '#FF9500' } : {}} className={viewMode === "1x1" ? "text-white" : ""}>
+    <CoherePage wide>
+        <CoherePageHeader
+          eyebrow="Review Workbench"
+          title="라벨링 결과 검수"
+          description={`총 ${images.length}개 이미지 라벨링 완료`}
+          actions={
+            <div className="flex gap-2">
+            <Button variant={viewMode === "1x1" ? "default" : "outline"} onClick={() => { setViewMode("1x1"); setCurrentPage(0); }} style={viewMode === "1x1" ? { backgroundColor: '#0f62fe' } : {}} className={viewMode === "1x1" ? "text-white" : ""}>
               <LayoutGrid className="w-4 h-4" />
             </Button>
-            <Button variant={viewMode === "2x2" ? "default" : "outline"} onClick={() => { setViewMode("2x2"); setCurrentPage(0); }} style={viewMode === "2x2" ? { backgroundColor: '#FF9500' } : {}} className={viewMode === "2x2" ? "text-white" : ""}>
+            <Button variant={viewMode === "2x2" ? "default" : "outline"} onClick={() => { setViewMode("2x2"); setCurrentPage(0); }} style={viewMode === "2x2" ? { backgroundColor: '#0f62fe' } : {}} className={viewMode === "2x2" ? "text-white" : ""}>
               <Grid2X2 className="w-4 h-4" />
             </Button>
-            <Button variant={viewMode === "3x3" ? "default" : "outline"} onClick={() => { setViewMode("3x3"); setCurrentPage(0); }} style={viewMode === "3x3" ? { backgroundColor: '#FF9500' } : {}} className={viewMode === "3x3" ? "text-white" : ""}>
+            <Button variant={viewMode === "3x3" ? "default" : "outline"} onClick={() => { setViewMode("3x3"); setCurrentPage(0); }} style={viewMode === "3x3" ? { backgroundColor: '#0f62fe' } : {}} className={viewMode === "3x3" ? "text-white" : ""}>
               <Grid3X3 className="w-4 h-4" />
             </Button>
-          </div>
+            </div>
+          }
+        />
+
+        <div className="cohere-stat-grid mb-8">
+          <CohereMetricCard label="전체 이미지" value={images.length} caption="검수 대상" />
+          <CohereMetricCard label="라벨 완료" value={labeledCount} caption="학습 변환 가능" tone="cyan" />
+          <CohereMetricCard label="검수 모드" value={viewMode} caption={`${currentPage + 1} / ${totalPages || 1} 페이지`} tone="violet" />
         </div>
 
         <div className={`grid gap-4 mb-6 ${viewMode === "1x1" ? "grid-cols-1 max-w-2xl mx-auto" : viewMode === "2x2" ? "grid-cols-2" : "grid-cols-3"}`}>
           {currentReviewImages.map((img, index) => (
-            <Card key={index} className="p-4 border-2">
-              <div className="aspect-square bg-gray-100 rounded-lg mb-3 overflow-hidden">
+            <Card key={index} className="cohere-model-card">
+              <div className="cohere-image-stage mb-3 aspect-square">
                 <img src={img.imageUrl} alt={img.filename} className="w-full h-full object-contain" />
               </div>
               <div className="space-y-2">
@@ -554,7 +570,7 @@ export function LabelingManualPage() {
                   <select 
                     value={img.label} 
                     onChange={(e) => handleUpdateLabelInReview(index, e.target.value)}
-                    className="text-sm border rounded px-2 py-1 bg-white text-gray-800 cursor-pointer focus:ring-2 focus:ring-orange-500 outline-none w-full mr-2"
+                    className="text-sm border rounded px-2 py-1 bg-white text-gray-800 cursor-pointer focus:ring-2 focus:ring-[#0f62fe] outline-none w-full mr-2"
                   >
                     {CHEXPERT_LABELS.map(label => (<option key={label} value={label}>{label}</option>))}
                   </select>
@@ -580,11 +596,10 @@ export function LabelingManualPage() {
           <Button variant="outline" onClick={handleDownloadCSV} className="px-6 py-6">
             <Download className="w-4 h-4 mr-2" /> CSV 다운로드
           </Button>
-          <Button onClick={handleStartTraining} style={{ backgroundColor: '#6B3131' }} className="text-white hover:opacity-90 px-8 py-6" disabled={isProcessing}>
+          <Button onClick={handleStartTraining} className="cohere-gradient-button px-8 py-6" disabled={isProcessing}>
             {isProcessing ? <><Loader2 className="w-5 h-5 mr-2 animate-spin" /> 변환 중...</> : <><Check className="w-5 h-5 mr-2" /> 검수 완료 및 연합학습 시작</>}
           </Button>
         </div>
-      </div>
-    </div>
+    </CoherePage>
   );
 }

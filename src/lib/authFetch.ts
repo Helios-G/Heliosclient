@@ -3,7 +3,9 @@ const BASE_URL = "http://localhost:8081";
 
 export const authFetch = async (url: string, options: RequestInit = {}) => {
 
-  const token = localStorage.getItem("accessToken");
+  const token =
+    localStorage.getItem("accessToken") ||
+    localStorage.getItem("token");
 
   const headers = {
     "Content-Type": "application/json",
@@ -19,6 +21,7 @@ export const authFetch = async (url: string, options: RequestInit = {}) => {
   if (response.status === 401) {
     console.error("토큰 만료");
     localStorage.removeItem("accessToken");
+    localStorage.removeItem("token");
     localStorage.removeItem("user");
     throw new Error("Unauthorized");
   }

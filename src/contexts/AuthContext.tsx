@@ -13,6 +13,7 @@ interface AuthContextType {
   isLoggedIn: boolean;
   user: User | null;
   isAdmin: boolean;
+  userName?: string;
   login: (userData: User, token: string) => void;
   logout: () => void;
   updateUser: (userData: User) => void;
@@ -38,7 +39,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // 2. 로그인 상태 초기화 (토큰과 유저 정보가 "실제로" 있을 때만 true)
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(() => {
-    const token = localStorage.getItem("token");
+    const token =
+      localStorage.getItem("accessToken") ||
+      localStorage.getItem("token");
     // 토큰이 존재하고, 문자열 "undefined"가 아닐 때만 로그인된 것으로 인정합니다.
     return !!(token && token !== "undefined" && token !== "null" && user);
   });
@@ -50,6 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = (userData: User, token: string) => {
     // 순서: 데이터 저장 -> 상태 업데이트 (순서가 중요합니다)
     localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("accessToken", token);
     localStorage.setItem("token", token);
     
     setUser(userData);
@@ -58,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("user");
+    localStorage.removeItem("accessToken");
     localStorage.removeItem("token");
     
     setUser(null);

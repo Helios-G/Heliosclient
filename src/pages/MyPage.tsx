@@ -27,6 +27,7 @@ import {
   AlertDialogTrigger,
 } from "../components/ui/alert-dialog";
 import { mockContributedModels } from "../data/mockContributedModels";
+import { CohereMetricCard, CoherePage, CoherePageHeader } from "../components/CoherePage";
 
 export function MyPage() {
   const { user, logout } = useAuth();
@@ -51,72 +52,73 @@ export function MyPage() {
   }
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ backgroundColor: "#FFF5EB" }}>
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <h1 style={{ color: "#6B3131" }}>회원 정보</h1>
-          <p className="mt-2 text-gray-600">
-            병원 계정 정보를 확인하고 관리하세요
-          </p>
-        </div>
-
-        <Card className="p-8 mb-6 shadow-lg">
-          <div className="flex items-center justify-between mb-6">
-            <h2 style={{ color: "#6B3131" }}>병원 정보</h2>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="gap-2"
-            >
+    <CoherePage>
+        <CoherePageHeader
+          eyebrow="Account Workspace"
+          title="회원 정보"
+          description="병원 계정 정보와 모델 기여 이력을 확인하고 관리하세요."
+          actions={
+            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-2 bg-white/80">
               <LogOut className="w-4 h-4" />
               로그아웃
             </Button>
+          }
+        />
+
+        <div className="cohere-stat-grid mb-6">
+          <CohereMetricCard label="기관 계정" value={user.userName || user.name || "HELIOS"} caption={user.email} />
+          <CohereMetricCard label="기여 모델" value={contributionHistory.length} caption="학습 완료 이력" tone="cyan" />
+          <CohereMetricCard label="권한" value={user.isAdmin ? "Admin" : "Member"} caption="워크스페이스 접근 권한" tone="violet" />
+        </div>
+
+        <Card className="cohere-surface mb-6 p-8 shadow-none">
+          <div className="flex items-center justify-between mb-6">
+            <h2 style={{ color: "#071225" }}>병원 정보</h2>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <Building2 className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="cohere-info-row">
+              <Building2 className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">병원명</p>
                 <p className="mt-1">{user.userName}</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <Mail className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
+            <div className="cohere-info-row">
+              <Mail className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">병원 아이디 (이메일)</p>
                 <p className="mt-1">{user.email}</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <FileText className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
+            <div className="cohere-info-row">
+              <FileText className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">사업자번호</p>
                 <p className="mt-1">{user.businessNumber}</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <User className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
+            <div className="cohere-info-row">
+              <User className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">담당자 이름</p>
                 <p className="mt-1">{user.managerName}</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <Phone className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
+            <div className="cohere-info-row">
+              <Phone className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">전화번호</p>
                 <p className="mt-1">{user.phone}</p>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg">
-              <MapPin className="w-5 h-5 mt-0.5" style={{ color: "#FF9500" }} />
+            <div className="cohere-info-row">
+              <MapPin className="w-5 h-5 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm text-gray-500">주소</p>
                 <p className="mt-1">{user.address}</p>
@@ -125,10 +127,10 @@ export function MyPage() {
           </div>
         </Card>
 
-        <Card className="p-8 mb-6 shadow-lg">
+        <Card className="cohere-surface mb-6 p-8 shadow-none">
           <div className="flex items-center gap-2 mb-6">
-            <Upload className="w-5 h-5" style={{ color: "#FF9500" }} />
-            <h2 style={{ color: "#6B3131" }}>모델 기여 이력</h2>
+            <Upload className="w-5 h-5" style={{ color: "#0f62fe" }} />
+            <h2 style={{ color: "#071225" }}>모델 기여 이력</h2>
           </div>
 
           {contributionHistory.length > 0 ? (
@@ -136,7 +138,7 @@ export function MyPage() {
               {contributionHistory.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-start justify-between gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  className="flex cursor-pointer items-start justify-between gap-4 rounded-2xl border border-slate-200 bg-white/70 p-4 transition-colors hover:bg-white"
                   onClick={() => navigate(`/model/${item.id}`)}
                 >
                   <div className="flex-1">
@@ -176,8 +178,8 @@ export function MyPage() {
           )}
         </Card>
 
-        <Card className="p-8 shadow-lg">
-          <h2 className="mb-6" style={{ color: "#6B3131" }}>계정 관리</h2>
+        <Card className="cohere-surface p-8 shadow-none">
+          <h2 className="mb-6" style={{ color: "#071225" }}>계정 관리</h2>
 
           <div className="space-y-4">
             <Button
@@ -227,7 +229,6 @@ export function MyPage() {
             </div>
           </div>
         </Card>
-      </div>
-    </div>
+    </CoherePage>
   );
 }

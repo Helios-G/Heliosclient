@@ -40,7 +40,7 @@ export function ModelDetailPage() {
 
   if (!modelDetail) {
     return (
-      <div className="min-h-screen py-12 px-4 bg-white">
+      <div className="cohere-page py-12 px-4">
         <div className="max-w-3xl mx-auto">
           <Button
             variant="ghost"
@@ -64,7 +64,7 @@ export function ModelDetailPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4 bg-white">
+    <div className="cohere-page py-12 px-4">
       <div className="max-w-5xl mx-auto">
         <div className="mb-8">
           <Button
@@ -91,68 +91,68 @@ export function ModelDetailPage() {
 
           <div className="space-y-8">
             <div>
-              <h2 style={{ color: "#6B3131" }} className="mb-6 text-center">기여 모델 요약</h2>
+              <h2 style={{ color: "#071225" }} className="mb-6 text-center">기여 모델 요약</h2>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <Layers className="w-5 h-5" style={{ color: "#FF9500" }} />
-                  <h4 style={{ color: "#6B3131" }}>버전</h4>
+                  <Layers className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                  <h4 style={{ color: "#071225" }}>버전</h4>
                 </div>
                 <p className="text-2xl">{modelDetail.version}</p>
               </div>
 
-              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <Building2 className="w-5 h-5" style={{ color: "#FF9500" }} />
-                  <h4 style={{ color: "#6B3131" }}>참여 기관 수</h4>
+                  <Building2 className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                  <h4 style={{ color: "#071225" }}>참여 기관 수</h4>
                 </div>
                 <p className="text-2xl">{modelDetail.participatingUsers}</p>
               </div>
 
-              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <TrendingUp className="w-5 h-5" style={{ color: "#FF9500" }} />
-                  <h4 style={{ color: "#6B3131" }}>총 라운드 수</h4>
+                  <TrendingUp className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                  <h4 style={{ color: "#071225" }}>총 라운드 수</h4>
                 </div>
                 <p className="text-2xl">{modelDetail.totalRounds} 라운드</p>
               </div>
 
-              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                 <div className="flex items-center gap-3 mb-3">
-                  <Clock className="w-5 h-5" style={{ color: "#FF9500" }} />
-                  <h4 style={{ color: "#6B3131" }}>학습 소요 시간</h4>
+                  <Clock className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                  <h4 style={{ color: "#071225" }}>학습 소요 시간</h4>
                 </div>
                 <p className="text-2xl">{modelDetail.trainingDuration}</p>
               </div>
             </div>
 
             <div>
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>결과 요약</h3>
+              <h3 className="mb-4" style={{ color: "#071225" }}>결과 요약</h3>
               <div className="space-y-4">
-                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                   <div className="flex justify-between items-center">
                     <div>
-                      <h4 style={{ color: "#6B3131" }} className="mb-1">최종 정확도 (Accuracy)</h4>
+                      <h4 style={{ color: "#071225" }} className="mb-1">최종 정확도 (Accuracy)</h4>
                       <p className="text-sm text-gray-600">기여 모델의 최종 정확도</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-3xl" style={{ color: "#FF9500" }}>
+                      <p className="text-3xl" style={{ color: "#0f62fe" }}>
                         {(modelDetail.finalAccuracy * 100).toFixed(2)}%
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                   <div className="flex justify-between items-center">
                     <div>
-                      <h4 style={{ color: "#6B3131" }} className="mb-1">최종 손실 (Loss)</h4>
+                      <h4 style={{ color: "#071225" }} className="mb-1">최종 손실 (Loss)</h4>
                       <p className="text-sm text-gray-600">학습 종료 시점의 손실 값</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-3xl" style={{ color: "#6B3131" }}>
+                      <p className="text-3xl" style={{ color: "#071225" }}>
                         {modelDetail.finalLoss.toFixed(4)}
                       </p>
                     </div>
@@ -162,10 +162,10 @@ export function ModelDetailPage() {
             </div>
 
             <div>
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>학습 시 성능 추이</h3>
+              <h3 className="mb-4" style={{ color: "#071225" }}>학습 시 성능 추이</h3>
               <div className="grid grid-cols-1 gap-6">
                 <Card className="p-6 border-2">
-                  <h4 className="mb-4" style={{ color: "#6B3131" }}>정확도 변화</h4>
+                  <h4 className="mb-4" style={{ color: "#071225" }}>정확도 변화</h4>
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={modelDetail.trainingHistory}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -176,10 +176,10 @@ export function ModelDetailPage() {
                       <Line
                         type="monotone"
                         dataKey="accuracy"
-                        stroke="#FF9500"
+                        stroke="#0f62fe"
                         strokeWidth={3}
                         name="Accuracy"
-                        dot={{ fill: "#FF9500", r: 4 }}
+                        dot={{ fill: "#0f62fe", r: 4 }}
                         activeDot={{ r: 6 }}
                       />
                     </LineChart>
@@ -187,7 +187,7 @@ export function ModelDetailPage() {
                 </Card>
 
                 <Card className="p-6 border-2">
-                  <h4 className="mb-4" style={{ color: "#6B3131" }}>Loss 변화</h4>
+                  <h4 className="mb-4" style={{ color: "#071225" }}>Loss 변화</h4>
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart data={modelDetail.trainingHistory}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -198,10 +198,10 @@ export function ModelDetailPage() {
                       <Line
                         type="monotone"
                         dataKey="loss"
-                        stroke="#6B3131"
+                        stroke="#071225"
                         strokeWidth={3}
                         name="Loss"
-                        dot={{ fill: "#6B3131", r: 4 }}
+                        dot={{ fill: "#071225", r: 4 }}
                         activeDot={{ r: 6 }}
                       />
                     </LineChart>
@@ -211,36 +211,36 @@ export function ModelDetailPage() {
             </div>
 
             <div>
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>학습 상세</h3>
+              <h3 className="mb-4" style={{ color: "#071225" }}>학습 상세</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                   <div className="flex items-center gap-3 mb-3">
-                    <Database className="w-5 h-5" style={{ color: "#FF9500" }} />
-                    <h4 style={{ color: "#6B3131" }}>데이터 형식</h4>
+                    <Database className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                    <h4 style={{ color: "#071225" }}>데이터 형식</h4>
                   </div>
                   <p className="text-lg">{modelDetail.dataType}</p>
                 </div>
 
-                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                   <div className="flex items-center gap-3 mb-3">
-                    <Cpu className="w-5 h-5" style={{ color: "#FF9500" }} />
-                    <h4 style={{ color: "#6B3131" }}>알고리즘</h4>
+                    <Cpu className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                    <h4 style={{ color: "#071225" }}>알고리즘</h4>
                   </div>
                   <p className="text-lg">{modelDetail.algorithm}</p>
                 </div>
 
-                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                   <div className="flex items-center gap-3 mb-3">
-                    <Layers className="w-5 h-5" style={{ color: "#FF9500" }} />
-                    <h4 style={{ color: "#6B3131" }}>모델 구조</h4>
+                    <Layers className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                    <h4 style={{ color: "#071225" }}>모델 구조</h4>
                   </div>
                   <p className="text-lg">{modelDetail.modelArchitecture}</p>
                 </div>
 
-                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+                <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                   <div className="flex items-center gap-3 mb-3">
-                    <Check className="w-5 h-5" style={{ color: "#FF9500" }} />
-                    <h4 style={{ color: "#6B3131" }}>학습 완료 날짜</h4>
+                    <Check className="w-5 h-5" style={{ color: "#0f62fe" }} />
+                    <h4 style={{ color: "#071225" }}>학습 완료 날짜</h4>
                   </div>
                   <p className="text-lg">{modelDetail.completedAt}</p>
                 </div>
@@ -248,11 +248,11 @@ export function ModelDetailPage() {
             </div>
 
             <div>
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>학습 일정</h3>
-              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#FFF9F5" }}>
+              <h3 className="mb-4" style={{ color: "#071225" }}>학습 일정</h3>
+              <div className="p-6 rounded-lg border-2" style={{ backgroundColor: "#f7fbff" }}>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <Calendar className="w-5 h-5" style={{ color: "#0f62fe" }} />
                     <div>
                       <p className="text-sm text-gray-600">학습 시작 시간</p>
                       <p className="text-lg">{modelDetail.startTime}</p>
@@ -260,7 +260,7 @@ export function ModelDetailPage() {
                   </div>
                   <div className="border-t border-gray-200 my-3"></div>
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5" style={{ color: "#FF9500" }} />
+                    <Calendar className="w-5 h-5" style={{ color: "#0f62fe" }} />
                     <div>
                       <p className="text-sm text-gray-600">학습 종료 시간</p>
                       <p className="text-lg">{modelDetail.endTime}</p>
@@ -277,12 +277,12 @@ export function ModelDetailPage() {
             variant="outline"
             onClick={() => navigate(backPath)}
             className="px-8 py-6 border-2"
-            style={{ borderColor: "#6B3131", color: "#6B3131" }}
+            style={{ borderColor: "#071225", color: "#071225" }}
           >
             {modelDetail.source === "download" ? "모델 다운로드로 이동" : "기여 이력으로 이동"}
           </Button>
           <Button
-            style={{ backgroundColor: "#FF9500" }}
+            style={{ backgroundColor: "#0f62fe" }}
             className="text-white hover:opacity-90 px-8 py-6"
             onClick={handleDownload}
           >
