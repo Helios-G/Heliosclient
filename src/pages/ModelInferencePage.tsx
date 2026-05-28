@@ -42,7 +42,9 @@ interface ModelConfig {
   preprocess: (img: tf.Tensor3D) => tf.Tensor;
   // model.predict 결과 → 확률값 ([0,1] 범위). 모델이 이미 softmax/sigmoid 적용되어 있으면 identity.
   toProbs: (raw: tf.Tensor) => tf.Tensor;
-  // saliency 그래디언트 계산용 target score (saturation 회피 위해 모델 별 분리)
+  // saliency 계산 방식: "gradient" (빠름, autograd 필요) | "occlusion" (느림, robust)
+  saliencyMethod: "gradient" | "occlusion";
+  // saliency 그래디언트 계산용 target score (saliencyMethod="gradient" 일 때만 사용)
   targetScore: (raw: tf.Tensor, classIdx: number) => tf.Scalar;
 }
 
@@ -68,6 +70,7 @@ const MODEL_CONFIGS: Record<ModelKind, ModelConfig> = {
       return norm.transpose([2, 0, 1]).expandDims(0); // [1, 3, 320, 320]
     }),
     toProbs: (raw) => raw.sigmoid(),
+    saliencyMethod: "gradient",
     targetScore: (raw, c) => {
       // CheXpert: logit → sigmoid; sigmoid 출력값을 target score 로 (정상 작동 검증됨)
       // tf.grad 내부에서는 tidy 사용 금지 (tape backprop 에 필요한 중간 텐서가 dispose 될 수 있음)
@@ -91,10 +94,11 @@ const MODEL_CONFIGS: Record<ModelKind, ModelConfig> = {
       return norm.expandDims(0); // [1, 224, 224, 3]
     }),
     toProbs: (raw) => raw, // 모델 마지막 Dense에 softmax 포함
+    // DR LayersModel 의 InceptionV3 nested submodel 에서 tf.grad 가 backward 추적 실패
+    // ("Cannot read properties of undefined (reading 'dataId')") → occlusion 방식으로 분기
+    saliencyMethod: "occlusion",
     targetScore: (raw, c) => {
-      // DR: 출력이 이미 softmax 확률 → saturation 회피 위해 log-prob 사용
-      // log(p) 는 confidence 가 높을수록 0 에 가깝지만 gradient 는 1/p 로 살아있음
-      const sliced = raw.slice([0, c], [1, 1]); // [1,1]
+      const sliced = raw.slice([0, c], [1, 1]);
       return sliced.add(1e-7).log().sum() as tf.Scalar;
     },
   },
@@ -139,6 +143,91 @@ async function computeSaliencyMap(
   const arr = (await saliency2D.array()) as number[][];
   saliency2D.dispose();
   return arr;
+}
+
+// 단일 forward → target class 확률값 반환 (occlusion saliency 의 score 측정용)
+async function getClassScore(
+  model: tf.LayersModel | tf.GraphModel,
+  input: tf.Tensor,
+  classIdx: number,
+  toProbs: (raw: tf.Tensor) => tf.Tensor
+): Promise<number> {
+  const raw = model.predict(input) as tf.Tensor;
+  const probs = toProbs(raw);
+  const arr = await probs.data();
+  if (probs !== raw) probs.dispose();
+  raw.dispose();
+  return arr[classIdx];
+}
+
+// Occlusion-based saliency: 입력 일부를 가린 후 score 변화를 측정해 영역별 중요도 계산
+// 그래디언트가 필요 없어 LayersModel / nested submodel 등 어떤 모델에서도 동작
+// 단점: gridSize^2 회 forward 필요 (느림)
+async function computeOcclusionSaliency(
+  model: tf.LayersModel | tf.GraphModel,
+  inputTensor: tf.Tensor,
+  classIdx: number,
+  layout: "nchw" | "nhwc",
+  toProbs: (raw: tf.Tensor) => tf.Tensor,
+  gridSize: number = 12,
+  onProgress?: (done: number, total: number) => void
+): Promise<number[][]> {
+  const shape = inputTensor.shape; // NCHW: [1,C,H,W] | NHWC: [1,H,W,C]
+  const H = layout === "nchw" ? shape[2]! : shape[1]!;
+  const W = layout === "nchw" ? shape[3]! : shape[2]!;
+
+  const baseScore = await getClassScore(model, inputTensor, classIdx, toProbs);
+  console.log(`[Occlusion] base score for class ${classIdx}: ${baseScore.toFixed(4)}`);
+
+  const cellH = Math.max(1, Math.floor(H / gridSize));
+  const cellW = Math.max(1, Math.floor(W / gridSize));
+  const total = gridSize * gridSize;
+  const saliency: number[][] = [];
+
+  let done = 0;
+  for (let gy = 0; gy < gridSize; gy++) {
+    const row: number[] = [];
+    const y0 = gy * cellH;
+    const y1 = Math.min(H, y0 + cellH);
+    for (let gx = 0; gx < gridSize; gx++) {
+      const x0 = gx * cellW;
+      const x1 = Math.min(W, x0 + cellW);
+
+      // 2D mask: 가릴 셀=0, 나머지=1
+      const maskData = new Float32Array(H * W);
+      maskData.fill(1);
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          maskData[y * W + x] = 0;
+        }
+      }
+
+      const occluded = tf.tidy(() => {
+        const mask2d = tf.tensor2d(maskData, [H, W]);
+        const mask = layout === "nchw"
+          ? mask2d.reshape([1, 1, H, W])  // broadcast over C
+          : mask2d.reshape([1, H, W, 1]); // broadcast over C
+        return inputTensor.mul(mask);
+      });
+
+      const score = await getClassScore(model, occluded, classIdx, toProbs);
+      occluded.dispose();
+
+      // saliency = baseline - occluded (높을수록 해당 영역이 중요)
+      row.push(baseScore - score);
+      done += 1;
+      if (onProgress && (done % 8 === 0 || done === total)) onProgress(done, total);
+      // 다음 forward 전 UI thread yield
+      await tf.nextFrame();
+    }
+    saliency.push(row);
+  }
+
+  // 음수(가렸을 때 score 가 오히려 오른 영역) 는 0 으로 clip, 그 후 [0,1] 정규화
+  const flat = saliency.flat();
+  const maxV = Math.max(...flat);
+  const range = maxV > 0 ? maxV : 1;
+  return saliency.map(r => r.map(v => Math.max(0, v) / range));
 }
 
 // gradcam.py 의 overlay() + pseudo-mask 시각화를 canvas 로 포팅
@@ -218,6 +307,7 @@ export function ModelInferencePage() {
   const [heatmapMaskedURL, setHeatmapMaskedURL] = useState<string | null>(null);
   const [heatmapTargetClass, setHeatmapTargetClass] = useState<string>("");
   const [heatmapError, setHeatmapError] = useState<string | null>(null);
+  const [heatmapProgress, setHeatmapProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Input Refs (숨겨진 input을 클릭하기 위함)
   const modelInputRef = useRef<HTMLInputElement>(null);
@@ -232,6 +322,7 @@ export function ModelInferencePage() {
     setHeatmapMaskedURL(null);
     setHeatmapTargetClass("");
     setHeatmapError(null);
+    setHeatmapProgress(null);
   };
 
   const switchModelKind = (next: ModelKind) => {
@@ -368,14 +459,31 @@ export function ModelInferencePage() {
           .sort((a, b) => b.score - a.score)[0];
 
         if (topAbnormal && imageElementRef.current) {
-          console.log("[Heatmap] target class:", cfg.classes[topAbnormal.i], "score:", topAbnormal.score);
-          const saliency = await computeSaliencyMap(
-            model,
-            tensor,
-            topAbnormal.i,
-            cfg.layout,
-            cfg.targetScore
+          console.log(
+            `[Heatmap] method=${cfg.saliencyMethod} target=${cfg.classes[topAbnormal.i]} score=${topAbnormal.score.toFixed(4)}`
           );
+          let saliency: number[][];
+          if (cfg.saliencyMethod === "occlusion") {
+            setHeatmapProgress({ done: 0, total: 144 });
+            saliency = await computeOcclusionSaliency(
+              model,
+              tensor,
+              topAbnormal.i,
+              cfg.layout,
+              cfg.toProbs,
+              12,
+              (done, total) => setHeatmapProgress({ done, total })
+            );
+            setHeatmapProgress(null);
+          } else {
+            saliency = await computeSaliencyMap(
+              model,
+              tensor,
+              topAbnormal.i,
+              cfg.layout,
+              cfg.targetScore
+            );
+          }
           // saliency 가 전부 0 에 가까우면 saturation 발생한 것
           const flat = saliency.flat();
           const maxV = Math.max(...flat);
@@ -399,6 +507,7 @@ export function ModelInferencePage() {
         setHeatmapMaskedURL(null);
         setHeatmapTargetClass("");
         setHeatmapError(camErr?.message ?? String(camErr));
+        setHeatmapProgress(null);
       }
 
       tf.dispose(tensor);
@@ -650,6 +759,25 @@ export function ModelInferencePage() {
                     </p>
                   </div>
 
+                  {/* Heatmap 생성 진행 상황 (occlusion 방식 등 느린 계산용) */}
+                  {heatmapProgress && (
+                    <div className="mt-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+                      <h4 className="font-bold text-blue-700 mb-2 flex items-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        모델 주목 영역 계산 중 (occlusion saliency)
+                      </h4>
+                      <div className="w-full bg-blue-100 rounded-full h-2 mb-1">
+                        <div
+                          className="bg-blue-500 h-2 rounded-full transition-all"
+                          style={{ width: `${(heatmapProgress.done / heatmapProgress.total) * 100}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-blue-700">
+                        {heatmapProgress.done} / {heatmapProgress.total} forward pass
+                      </p>
+                    </div>
+                  )}
+
                   {/* Heatmap 생성 실패 메시지 */}
                   {heatmapError && (
                     <div className="mt-6 p-4 bg-red-50 rounded-lg border-2 border-red-200">
@@ -677,7 +805,9 @@ export function ModelInferencePage() {
                         )}
                       </h4>
                       <p className="text-xs text-gray-500 mb-4">
-                        Grad-CAM 기반 saliency map — 빨간색에 가까울수록 모델이 해당 진단을 내릴 때 강하게 참고한 영역입니다.
+                        {cfg.saliencyMethod === "gradient"
+                          ? "Gradient saliency"
+                          : "Occlusion saliency"} — 빨간색에 가까울수록 모델이 해당 진단을 내릴 때 강하게 참고한 영역입니다.
                       </p>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {imageURL && (
