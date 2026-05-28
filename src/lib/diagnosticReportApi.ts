@@ -1,6 +1,20 @@
 import type { PlaygroundReportPayload, PlaygroundResultItem } from "./playgroundReport";
 
-const AI_BASE_URL = "http://localhost:8000";
+function resolveAiBaseUrl() {
+  const configuredUrl = import.meta.env.VITE_AI_BASE_URL;
+  if (configuredUrl) {
+    return configuredUrl.replace(/\/$/, "");
+  }
+
+  if (typeof window === "undefined") {
+    return "http://localhost:8000";
+  }
+
+  const { protocol, hostname } = window.location;
+  return `${protocol}//${hostname}:8000`;
+}
+
+const AI_BASE_URL = resolveAiBaseUrl();
 
 export interface DiagnosticDraftRequest {
   sessionId?: string;
