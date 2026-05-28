@@ -6,7 +6,6 @@ import { Separator } from "../components/ui/separator";
 import {
   Building2,
   Mail,
-  FileText,
   Phone,
   MapPin,
   User,
@@ -90,14 +89,6 @@ export function MyPage() {
               <div className="flex-1">
                 <p className="text-sm text-gray-500">병원 아이디 (이메일)</p>
                 <p className="mt-1">{user.email}</p>
-              </div>
-            </div>
-
-            <div className="cohere-info-row">
-              <FileText className="w-5 h-5 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-gray-500">사업자번호</p>
-                <p className="mt-1">{user.businessNumber}</p>
               </div>
             </div>
 

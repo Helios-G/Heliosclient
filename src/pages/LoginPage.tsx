@@ -64,7 +64,6 @@ export function LoginPage() {
         email: myInfo.email,
         roleId: myInfo.roleId,
         roleName: myInfo.roleName,
-        businessNumber: "",
         phone: "",
         address: "",
         managerName: myInfo.name,
