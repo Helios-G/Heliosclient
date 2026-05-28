@@ -1,0 +1,16 @@
+name: Trigger Main Deploy
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger HELIOS-Main deploy
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          repository: Helios-G/HELIOS-Main
+          event-type: submodule-updated
