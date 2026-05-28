@@ -3,17 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { 
-  Upload, 
-  FileUp, 
-  Activity, 
-  CheckCircle2, 
-  FileJson, 
-  FileDigit, 
+import {
+  Upload,
+  FileUp,
+  Activity,
+  CheckCircle2,
+  FileJson,
+  FileDigit,
   Image as ImageIcon,
   AlertCircle,
   Loader2,
-  Play
+  Play,
+  Eye
 } from "lucide-react";
 import * as tf from "@tensorflow/tfjs";
 import {
@@ -34,6 +35,102 @@ const CLASSES = [
   "Pneumothorax", "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
 ];
 
+// JET colormap (cv2.applyColorMap(..., COLORMAP_JET) 근사)
+function jetColor(v: number): [number, number, number] {
+  const x = Math.max(0, Math.min(1, v));
+  const four = 4 * x;
+  const r = Math.max(0, Math.min(1, Math.min(four - 1.5, -four + 4.5)));
+  const g = Math.max(0, Math.min(1, Math.min(four - 0.5, -four + 3.5)));
+  const b = Math.max(0, Math.min(1, Math.min(four + 0.5, -four + 2.5)));
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+// gradcam.py 의 gradcam(): 대상 클래스 score 에 대한 그래디언트로부터 saliency map 생성
+// GraphModel 이라 conv 중간 출력 접근이 까다로워 입력 기준 그래디언트 사용 (vanilla-gradient saliency)
+async function computeSaliencyMap(
+  model: tf.LayersModel | tf.GraphModel,
+  inputTensor: tf.Tensor,
+  classIdx: number
+): Promise<number[][]> {
+  const gradFn = tf.grad((x: tf.Tensor) => {
+    const logits = model.predict(x) as tf.Tensor;
+    const probs = logits.sigmoid();
+    return probs.flatten().gather(tf.tensor1d([classIdx], "int32")).sum() as tf.Scalar;
+  });
+
+  const grads = gradFn(inputTensor); // NCHW: [1, 3, H, W]
+
+  const saliency2D = tf.tidy(() => {
+    const absGrads = grads.abs();
+    const reduced = absGrads.max(1).squeeze() as tf.Tensor2D; // [H, W]
+    const minV = reduced.min();
+    const maxV = reduced.max();
+    return reduced.sub(minV).div(maxV.sub(minV).add(1e-8)) as tf.Tensor2D;
+  });
+
+  grads.dispose();
+  const arr = (await saliency2D.array()) as number[][];
+  saliency2D.dispose();
+  return arr;
+}
+
+// gradcam.py 의 overlay() + pseudo-mask 시각화를 canvas 로 포팅
+function renderHeatmapOverlay(
+  canvas: HTMLCanvasElement,
+  imgEl: HTMLImageElement,
+  saliency: number[][],
+  alpha: number = 0.4,
+  threshold: number = 0.5
+): { overlayURL: string; maskedURL: string } {
+  const w = imgEl.naturalWidth || imgEl.width;
+  const h = imgEl.naturalHeight || imgEl.height;
+  const sH = saliency.length;
+  const sW = saliency[0].length;
+
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(imgEl, 0, 0, w, h);
+  const baseImage = ctx.getImageData(0, 0, w, h);
+
+  const overlayData = ctx.createImageData(w, h);
+  const maskedData = ctx.createImageData(w, h);
+
+  for (let y = 0; y < h; y++) {
+    const sy = Math.min(sH - 1, Math.floor((y * sH) / h));
+    for (let x = 0; x < w; x++) {
+      const sx = Math.min(sW - 1, Math.floor((x * sW) / w));
+      const v = saliency[sy][sx];
+      const [hr, hg, hb] = jetColor(v);
+      const i = (y * w + x) * 4;
+
+      const br = baseImage.data[i];
+      const bg = baseImage.data[i + 1];
+      const bb = baseImage.data[i + 2];
+
+      overlayData.data[i] = Math.round((1 - alpha) * br + alpha * hr);
+      overlayData.data[i + 1] = Math.round((1 - alpha) * bg + alpha * hg);
+      overlayData.data[i + 2] = Math.round((1 - alpha) * bb + alpha * hb);
+      overlayData.data[i + 3] = 255;
+
+      const keep = v >= threshold;
+      const dim = keep ? 1.0 : 0.25;
+      maskedData.data[i] = Math.round(br * dim);
+      maskedData.data[i + 1] = Math.round(bg * dim);
+      maskedData.data[i + 2] = Math.round(bb * dim);
+      maskedData.data[i + 3] = 255;
+    }
+  }
+
+  ctx.putImageData(overlayData, 0, 0);
+  const overlayURL = canvas.toDataURL("image/png");
+
+  ctx.putImageData(maskedData, 0, 0);
+  const maskedURL = canvas.toDataURL("image/png");
+
+  return { overlayURL, maskedURL };
+}
+
 export function ModelInferencePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -42,15 +139,21 @@ export function ModelInferencePage() {
   const [imageURL, setImageURL] = useState<string | null>(null);
   const [results, setResults] = useState<{ name: string; score: number }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   // UI용 상태
   const [modelFileNames, setModelFileNames] = useState<string[]>([]);
   const [imageFileName, setImageFileName] = useState<string>("");
+
+  // Grad-CAM heatmap 상태
+  const [heatmapOverlayURL, setHeatmapOverlayURL] = useState<string | null>(null);
+  const [heatmapMaskedURL, setHeatmapMaskedURL] = useState<string | null>(null);
+  const [heatmapTargetClass, setHeatmapTargetClass] = useState<string>("");
 
   // Input Refs (숨겨진 input을 클릭하기 위함)
   const modelInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageElementRef = useRef<HTMLImageElement>(null);
+  const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     if (!user) {
@@ -129,6 +232,9 @@ export function ModelInferencePage() {
       setImageURL(url);
       setImageFileName(file.name);
       setResults([]); // 결과 초기화
+      setHeatmapOverlayURL(null);
+      setHeatmapMaskedURL(null);
+      setHeatmapTargetClass("");
     }
   };
 
@@ -171,25 +277,51 @@ export function ModelInferencePage() {
 
       // 추론
       // GraphModel은 predict() 또는 execute() 사용
-      let prediction;
-      if (model instanceof tf.GraphModel) {
-          prediction = model.predict(tensor) as tf.Tensor;
-      } else {
-          prediction = model.predict(tensor) as tf.Tensor;
-      }
-      
+      const prediction = model.predict(tensor) as tf.Tensor;
+
       // 결과 처리 (Sigmoid 적용)
-      const probs = prediction.sigmoid().dataSync();
-      
-      // 결과 매핑
-      const chartData = Array.from(probs).map((score, i) => ({
-        name: CLASSES[i],
-        score: score * 100
-      })).sort((a, b) => b.score - a.score);
+      const probsTensor = prediction.sigmoid();
+      const probs = probsTensor.dataSync();
+      probsTensor.dispose();
+      prediction.dispose();
+
+      // 결과 매핑 (원본 인덱스 보존을 위해 별도 트래킹)
+      const probsArr = Array.from(probs);
+      const chartData = probsArr
+        .map((score, i) => ({ name: CLASSES[i], score: score * 100, idx: i }))
+        .sort((a, b) => b.score - a.score)
+        .map(({ name, score }) => ({ name, score }));
 
       setResults(chartData);
+
+      // Grad-CAM 스타일 heatmap: 가장 높은 확률 클래스(No Finding 제외)에 대해 생성
+      try {
+        const topNonNF = probsArr
+          .map((score, i) => ({ score, i }))
+          .filter(({ i }) => CLASSES[i] !== "No Finding")
+          .sort((a, b) => b.score - a.score)[0];
+
+        if (topNonNF && imageElementRef.current && heatmapCanvasRef.current) {
+          const saliency = await computeSaliencyMap(model, tensor, topNonNF.i);
+          const { overlayURL, maskedURL } = renderHeatmapOverlay(
+            heatmapCanvasRef.current,
+            imageElementRef.current,
+            saliency,
+            0.45,
+            0.5
+          );
+          setHeatmapOverlayURL(overlayURL);
+          setHeatmapMaskedURL(maskedURL);
+          setHeatmapTargetClass(CLASSES[topNonNF.i]);
+        }
+      } catch (camErr) {
+        console.warn("Heatmap 생성 실패:", camErr);
+        setHeatmapOverlayURL(null);
+        setHeatmapMaskedURL(null);
+      }
+
       tf.dispose(tensor);
-      
+
     } catch (err) {
       console.error(err);
       alert("진단 중 오류가 발생했습니다. 콘솔 로그를 확인해주세요.");
@@ -396,6 +528,65 @@ export function ModelInferencePage() {
                       {results[0].score < 50 && " (확률이 낮아 정상일 가능성이 높습니다.)"}
                     </p>
                   </div>
+
+                  {/* Grad-CAM 시각화: 모델 주목 영역 */}
+                  {(heatmapOverlayURL || heatmapMaskedURL) && (
+                    <div className="mt-6 p-4 bg-white rounded-lg border-2 border-orange-100">
+                      <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <Eye className="w-5 h-5 text-orange-600" />
+                        모델이 주목한 영역
+                        {heatmapTargetClass && (
+                          <span className="ml-2 text-sm font-normal text-gray-500">
+                            (대상 소견: <strong className="text-red-600">{heatmapTargetClass}</strong>)
+                          </span>
+                        )}
+                      </h4>
+                      <p className="text-xs text-gray-500 mb-4">
+                        Grad-CAM 기반 saliency map — 빨간색에 가까울수록 모델이 해당 진단을 내릴 때 강하게 참고한 영역입니다.
+                      </p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        {imageURL && (
+                          <div className="text-center">
+                            <div className="border rounded-lg overflow-hidden bg-black">
+                              <img
+                                src={imageURL}
+                                alt="원본"
+                                className="w-full h-auto object-contain max-h-[260px]"
+                              />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">원본</p>
+                          </div>
+                        )}
+                        {heatmapOverlayURL && (
+                          <div className="text-center">
+                            <div className="border rounded-lg overflow-hidden bg-black">
+                              <img
+                                src={heatmapOverlayURL}
+                                alt="Grad-CAM 오버레이"
+                                className="w-full h-auto object-contain max-h-[260px]"
+                              />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">Heatmap 오버레이</p>
+                          </div>
+                        )}
+                        {heatmapMaskedURL && (
+                          <div className="text-center">
+                            <div className="border rounded-lg overflow-hidden bg-black">
+                              <img
+                                src={heatmapMaskedURL}
+                                alt="주목 영역 마스킹"
+                                className="w-full h-auto object-contain max-h-[260px]"
+                              />
+                            </div>
+                            <p className="mt-1 text-xs text-gray-500">주목 영역만 강조</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 숨겨진 canvas (heatmap 렌더링용) */}
+                  <canvas ref={heatmapCanvasRef} className="hidden" />
                 </div>
               ) : (
                 <div className="h-[400px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed rounded-lg bg-gray-50">
