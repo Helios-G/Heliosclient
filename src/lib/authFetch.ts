@@ -1,5 +1,5 @@
 
-const BASE_URL = "http://localhost:8081";
+const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
 
 export const authFetch = async (url: string, options: RequestInit = {}) => {
 
