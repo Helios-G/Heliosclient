@@ -17,8 +17,8 @@ export function SignUpPage() {
     e.preventDefault();
     
     try {
-      // 실제 API 호출 로직 추가
-      const response = await axios.post("http://localhost:8081/auth/signup", {
+      const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8081";
+      const response = await axios.post(`${BASE_URL}/auth/signup`, {
         name: formData.userName,     // 백엔드 SignupRequest 필드명 매핑
         email: formData.email,
         password: formData.password
