@@ -28,12 +28,63 @@ import {
   Cell
 } from "recharts";
 
-// CheXpert 클래스
-const CLASSES = [
-  "No Finding", "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity",
-  "Lung Lesion", "Edema", "Consolidation", "Pneumonia", "Atelectasis",
-  "Pneumothorax", "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
-];
+type ModelKind = "chexpert" | "dr";
+
+interface ModelConfig {
+  label: string;
+  description: string;
+  modality: string;
+  loader: "graph" | "layers";
+  inputSize: number;
+  layout: "nchw" | "nhwc";
+  classes: string[];
+  baselineClass: string; // 정상/Negative 클래스 — heatmap 대상에서 제외
+  preprocess: (img: tf.Tensor3D) => tf.Tensor;
+  // model.predict 결과 → 확률값 ([0,1] 범위). 모델이 이미 softmax/sigmoid 적용되어 있으면 identity.
+  toProbs: (raw: tf.Tensor) => tf.Tensor;
+}
+
+const MODEL_CONFIGS: Record<ModelKind, ModelConfig> = {
+  chexpert: {
+    label: "CheXpert (흉부 X-ray)",
+    description: "14개 흉부 소견 다중 라벨 분류",
+    modality: "흉부 X-ray",
+    loader: "graph",
+    inputSize: 320,
+    layout: "nchw",
+    classes: [
+      "No Finding", "Enlarged Cardiomediastinum", "Cardiomegaly", "Lung Opacity",
+      "Lung Lesion", "Edema", "Consolidation", "Pneumonia", "Atelectasis",
+      "Pneumothorax", "Pleural Effusion", "Pleural Other", "Fracture", "Support Devices"
+    ],
+    baselineClass: "No Finding",
+    preprocess: (img) => tf.tidy(() => {
+      const resized = tf.image.resizeBilinear(img, [320, 320]).div(255.0);
+      const mean = tf.tensor([0.485, 0.456, 0.406]);
+      const std = tf.tensor([0.229, 0.224, 0.225]);
+      const norm = (resized.sub(mean) as tf.Tensor3D).div(std) as tf.Tensor3D;
+      return norm.transpose([2, 0, 1]).expandDims(0); // [1, 3, 320, 320]
+    }),
+    toProbs: (raw) => raw.sigmoid(),
+  },
+  dr: {
+    label: "DR (망막 fundus)",
+    description: "당뇨 망막병증 5단계 분류 (No_DR ~ Proliferate_DR)",
+    modality: "망막 fundus",
+    loader: "layers",
+    inputSize: 224,
+    layout: "nhwc",
+    classes: ["No_DR", "Mild", "Moderate", "Severe", "Proliferate_DR"],
+    baselineClass: "No_DR",
+    preprocess: (img) => tf.tidy(() => {
+      const resized = tf.image.resizeBilinear(img, [224, 224]);
+      // InceptionV3 preprocess_input: (x/127.5) - 1 → [-1, 1]
+      const norm = resized.div(127.5).sub(1.0);
+      return norm.expandDims(0); // [1, 224, 224, 3]
+    }),
+    toProbs: (raw) => raw, // 모델 마지막 Dense에 softmax 포함
+  },
+};
 
 // JET colormap (cv2.applyColorMap(..., COLORMAP_JET) 근사)
 function jetColor(v: number): [number, number, number] {
@@ -46,23 +97,26 @@ function jetColor(v: number): [number, number, number] {
 }
 
 // gradcam.py 의 gradcam(): 대상 클래스 score 에 대한 그래디언트로부터 saliency map 생성
-// GraphModel 이라 conv 중간 출력 접근이 까다로워 입력 기준 그래디언트 사용 (vanilla-gradient saliency)
+// GraphModel 등 중간 conv 출력 접근이 까다로워 입력 기준 그래디언트 사용 (vanilla-gradient saliency)
 async function computeSaliencyMap(
   model: tf.LayersModel | tf.GraphModel,
   inputTensor: tf.Tensor,
-  classIdx: number
+  classIdx: number,
+  layout: "nchw" | "nhwc",
+  toProbs: (raw: tf.Tensor) => tf.Tensor
 ): Promise<number[][]> {
   const gradFn = tf.grad((x: tf.Tensor) => {
-    const logits = model.predict(x) as tf.Tensor;
-    const probs = logits.sigmoid();
+    const raw = model.predict(x) as tf.Tensor;
+    const probs = toProbs(raw);
     return probs.flatten().gather(tf.tensor1d([classIdx], "int32")).sum() as tf.Scalar;
   });
 
-  const grads = gradFn(inputTensor); // NCHW: [1, 3, H, W]
+  const grads = gradFn(inputTensor); // NCHW: [1,3,H,W] | NHWC: [1,H,W,3]
+  const channelAxis = layout === "nchw" ? 1 : 3;
 
   const saliency2D = tf.tidy(() => {
     const absGrads = grads.abs();
-    const reduced = absGrads.max(1).squeeze() as tf.Tensor2D; // [H, W]
+    const reduced = absGrads.max(channelAxis).squeeze() as tf.Tensor2D;
     const minV = reduced.min();
     const maxV = reduced.max();
     return reduced.sub(minV).div(maxV.sub(minV).add(1e-8)) as tf.Tensor2D;
@@ -75,13 +129,14 @@ async function computeSaliencyMap(
 }
 
 // gradcam.py 의 overlay() + pseudo-mask 시각화를 canvas 로 포팅
+// canvas 는 내부에서 생성 (외부 ref 의존성 제거 → 2-click 버그 방지)
 function renderHeatmapOverlay(
-  canvas: HTMLCanvasElement,
   imgEl: HTMLImageElement,
   saliency: number[][],
   alpha: number = 0.4,
   threshold: number = 0.5
 ): { overlayURL: string; maskedURL: string } {
+  const canvas = document.createElement("canvas");
   const w = imgEl.naturalWidth || imgEl.width;
   const h = imgEl.naturalHeight || imgEl.height;
   const sH = saliency.length;
@@ -135,6 +190,7 @@ export function ModelInferencePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const [modelKind, setModelKind] = useState<ModelKind>("chexpert");
   const [model, setModel] = useState<tf.LayersModel | tf.GraphModel | null>(null);
   const [imageURL, setImageURL] = useState<string | null>(null);
   const [results, setResults] = useState<{ name: string; score: number }[]>([]);
@@ -153,7 +209,26 @@ export function ModelInferencePage() {
   const modelInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const imageElementRef = useRef<HTMLImageElement>(null);
-  const heatmapCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const cfg = MODEL_CONFIGS[modelKind];
+
+  const resetResults = () => {
+    setResults([]);
+    setHeatmapOverlayURL(null);
+    setHeatmapMaskedURL(null);
+    setHeatmapTargetClass("");
+  };
+
+  const switchModelKind = (next: ModelKind) => {
+    if (next === modelKind) return;
+    setModelKind(next);
+    if (model) {
+      try { (model as any).dispose?.(); } catch { /* noop */ }
+    }
+    setModel(null);
+    setModelFileNames([]);
+    resetResults();
+  };
 
   useEffect(() => {
     if (!user) {
@@ -208,11 +283,14 @@ export function ModelInferencePage() {
       console.log("📂 로드할 파일 순서:", sortedFiles.map(f => f.name));
       setModelFileNames(sortedFiles.map(f => f.name));
 
-      // 4. 모델 로드 시도 (GraphModel)
-      const loadedModel = await tf.loadGraphModel(tf.io.browserFiles(sortedFiles));
-      
+      // 4. 모델 로드 (cfg.loader 에 따라 분기)
+      const loadedModel = cfg.loader === "graph"
+        ? await tf.loadGraphModel(tf.io.browserFiles(sortedFiles))
+        : await tf.loadLayersModel(tf.io.browserFiles(sortedFiles));
+
       setModel(loadedModel);
-      console.log("🎉 모델 로드 최종 성공!");
+      resetResults();
+      console.log("🎉 모델 로드 최종 성공!", { kind: modelKind, loader: cfg.loader });
 
     } catch (err: any) {
       console.error(err);
@@ -231,10 +309,7 @@ export function ModelInferencePage() {
       const url = URL.createObjectURL(file);
       setImageURL(url);
       setImageFileName(file.name);
-      setResults([]); // 결과 초기화
-      setHeatmapOverlayURL(null);
-      setHeatmapMaskedURL(null);
-      setHeatmapTargetClass("");
+      resetResults();
     }
   };
 
@@ -243,68 +318,48 @@ export function ModelInferencePage() {
     if (!model || !imageElementRef.current) return;
 
     setIsProcessing(true);
-    
+
     try {
       const imgEl = imageElementRef.current;
 
-      // 이미지 디코딩 대기
-      if (imgEl.complete) {
-          await imgEl.decode().catch(() => {});
-      }
+      // 이미지 디코딩 대기 (naturalWidth 보장 위해 await 강제)
+      await imgEl.decode().catch(() => {});
 
-      // ✅ [핵심 수정] 전처리 로직을 모델 스펙(CheXpert)에 맞춤
-      const tensor = tf.tidy(() => {
-        // 1. 이미지 로드
-        let img = tf.browser.fromPixels(imgEl);
-        
-        // 2. 리사이징 (224 -> 320으로 변경!)
-        img = tf.image.resizeBilinear(img, [320, 320]);
-        
-        // 3. 정규화 (0~1)
-        img = img.div(255.0);
-
-        // 4. 표준화 (ImageNet Mean/Std) - 모델 학습때 썼다면 필수
-        const mean = tf.tensor([0.485, 0.456, 0.406]);
-        const std = tf.tensor([0.229, 0.224, 0.225]);
-        img = img.sub(mean).div(std);
-
-        // 5. Transpose (NHWC -> NCHW) - 채널을 앞으로
-        img = img.transpose([2, 0, 1]);
-
-        // 6. 배치 차원 추가
-        return img.expandDims(0); // [1, 3, 320, 320]
-      });
+      // cfg 의 전처리 사용 (모델 종류에 따른 분기)
+      const rawImg = tf.tidy(() => tf.browser.fromPixels(imgEl) as tf.Tensor3D);
+      const tensor = cfg.preprocess(rawImg);
+      rawImg.dispose();
 
       // 추론
-      // GraphModel은 predict() 또는 execute() 사용
       const prediction = model.predict(tensor) as tf.Tensor;
-
-      // 결과 처리 (Sigmoid 적용)
-      const probsTensor = prediction.sigmoid();
-      const probs = probsTensor.dataSync();
-      probsTensor.dispose();
+      const probsTensor = cfg.toProbs(prediction);
+      const probs = await probsTensor.data();
+      if (probsTensor !== prediction) probsTensor.dispose();
       prediction.dispose();
 
-      // 결과 매핑 (원본 인덱스 보존을 위해 별도 트래킹)
       const probsArr = Array.from(probs);
       const chartData = probsArr
-        .map((score, i) => ({ name: CLASSES[i], score: score * 100, idx: i }))
-        .sort((a, b) => b.score - a.score)
-        .map(({ name, score }) => ({ name, score }));
+        .map((score, i) => ({ name: cfg.classes[i] ?? `class_${i}`, score: score * 100 }))
+        .sort((a, b) => b.score - a.score);
 
       setResults(chartData);
 
-      // Grad-CAM 스타일 heatmap: 가장 높은 확률 클래스(No Finding 제외)에 대해 생성
+      // Grad-CAM 스타일 heatmap: 가장 높은 확률 클래스(baselineClass 제외)에 대해 생성
       try {
-        const topNonNF = probsArr
+        const topAbnormal = probsArr
           .map((score, i) => ({ score, i }))
-          .filter(({ i }) => CLASSES[i] !== "No Finding")
+          .filter(({ i }) => cfg.classes[i] !== cfg.baselineClass)
           .sort((a, b) => b.score - a.score)[0];
 
-        if (topNonNF && imageElementRef.current && heatmapCanvasRef.current) {
-          const saliency = await computeSaliencyMap(model, tensor, topNonNF.i);
+        if (topAbnormal && imageElementRef.current) {
+          const saliency = await computeSaliencyMap(
+            model,
+            tensor,
+            topAbnormal.i,
+            cfg.layout,
+            cfg.toProbs
+          );
           const { overlayURL, maskedURL } = renderHeatmapOverlay(
-            heatmapCanvasRef.current,
             imageElementRef.current,
             saliency,
             0.45,
@@ -312,7 +367,7 @@ export function ModelInferencePage() {
           );
           setHeatmapOverlayURL(overlayURL);
           setHeatmapMaskedURL(maskedURL);
-          setHeatmapTargetClass(CLASSES[topNonNF.i]);
+          setHeatmapTargetClass(cfg.classes[topAbnormal.i]);
         }
       } catch (camErr) {
         console.warn("Heatmap 생성 실패:", camErr);
@@ -336,15 +391,55 @@ export function ModelInferencePage() {
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">AI 진단실 (Playground)</h1>
           <p className="text-gray-600">
-            학습된 모델을 업로드하고, 실제 X-ray 이미지를 넣어 성능을 테스트해보세요.
+            학습된 모델을 업로드하고, 실제 {cfg.modality} 이미지를 넣어 성능을 테스트해보세요.
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
+
           {/* [왼쪽] 설정 패널 */}
           <div className="lg:col-span-1 space-y-6">
-            
+
+            {/* 0. 모델 종류 선택 */}
+            <Card className="p-6 border-2 border-gray-200">
+              <h3 className="font-bold text-lg mb-3 flex items-center gap-2 text-gray-800">
+                <Activity className="w-5 h-5 text-purple-600" />
+                모델 종류
+              </h3>
+              <p className="text-xs text-gray-500 mb-3">
+                업로드할 모델의 종류를 선택하세요. 전처리 및 클래스가 자동으로 매핑됩니다.
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {(Object.keys(MODEL_CONFIGS) as ModelKind[]).map((kind) => {
+                  const c = MODEL_CONFIGS[kind];
+                  const active = kind === modelKind;
+                  return (
+                    <button
+                      key={kind}
+                      type="button"
+                      onClick={() => switchModelKind(kind)}
+                      disabled={isProcessing}
+                      className={`p-3 rounded-lg border-2 text-left transition-all ${
+                        active
+                          ? "border-orange-400 bg-orange-50"
+                          : "border-gray-200 bg-white hover:border-gray-300"
+                      } ${isProcessing ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <div className={`text-sm font-bold ${active ? "text-orange-700" : "text-gray-700"}`}>
+                        {c.label}
+                      </div>
+                      <div className="text-[11px] text-gray-500 mt-1 leading-tight">
+                        {c.description}
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-1">
+                        {c.inputSize}×{c.inputSize} · {c.layout.toUpperCase()} · {c.classes.length}-class
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </Card>
+
             {/* 1. 모델 업로드 카드 */}
             <Card className={`p-6 border-2 transition-colors ${model ? 'border-green-200 bg-green-50' : 'border-dashed border-gray-300'}`}>
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-gray-800">
@@ -406,8 +501,8 @@ export function ModelInferencePage() {
             {/* 2. 이미지 업로드 카드 */}
             <Card className="p-6 border-2 border-gray-200">
               <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-gray-800">
-                <ImageIcon className="w-5 h-5 text-blue-600" /> 
-                2. X-ray 업로드
+                <ImageIcon className="w-5 h-5 text-blue-600" />
+                2. {cfg.modality} 업로드
               </h3>
               
               <input
@@ -421,10 +516,10 @@ export function ModelInferencePage() {
               {imageURL ? (
                 <div className="space-y-4">
                   <div className="border rounded-lg overflow-hidden bg-black">
-                    <img 
+                    <img
                       ref={imageElementRef}
-                      src={imageURL} 
-                      alt="X-ray Preview" 
+                      src={imageURL}
+                      alt={`${cfg.modality} Preview`}
                       className="w-full h-auto object-contain max-h-[250px]"
                     />
                   </div>
@@ -439,7 +534,7 @@ export function ModelInferencePage() {
                 </div>
               ) : (
                 <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-300">
-                  <p className="text-sm text-gray-500 mb-4">진단할 X-ray 이미지를 올려주세요</p>
+                  <p className="text-sm text-gray-500 mb-4">진단할 {cfg.modality} 이미지를 올려주세요</p>
                   <Button onClick={() => imageInputRef.current?.click()} variant="outline">
                     <Upload className="w-4 h-4 mr-2" />
                     이미지 선택
@@ -585,8 +680,6 @@ export function ModelInferencePage() {
                     </div>
                   )}
 
-                  {/* 숨겨진 canvas (heatmap 렌더링용) */}
-                  <canvas ref={heatmapCanvasRef} className="hidden" />
                 </div>
               ) : (
                 <div className="h-[400px] flex flex-col items-center justify-center text-gray-400 border-2 border-dashed rounded-lg bg-gray-50">
