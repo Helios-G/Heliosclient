@@ -3,18 +3,21 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Card } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, Clipboard, Download, FileText, Image as ImageIcon, AlertCircle } from "lucide-react";
-import { clearPlaygroundReport, loadPlaygroundReport, type PlaygroundReportPayload } from "../lib/playgroundReport";
+import { ArrowLeft, Clipboard, Download, FileText, Image as ImageIcon, AlertCircle, Loader2, RefreshCw } from "lucide-react";
+import { clearPlaygroundReport, loadPlaygroundReport, type PlaygroundReportPayload, updatePlaygroundReport } from "../lib/playgroundReport";
+import { createDiagnosticDraft } from "../lib/diagnosticReportApi";
 
 export function ModelInferenceReportPage() {
   const navigate = useNavigate();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   const [payload, setPayload] = useState<PlaygroundReportPayload | null>(null);
   const [draft, setDraft] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationError, setGenerationError] = useState("");
 
   useEffect(() => {
-    if (!hospital) {
+    if (!user) {
       navigate("/login");
       return;
     }
@@ -26,12 +29,46 @@ export function ModelInferenceReportPage() {
     }
 
     setPayload(saved);
-    setDraft(saved.draft);
-  }, [hospital, navigate]);
+    setDraft(saved.generatedReport?.draft ?? saved.clientDraft ?? "");
+  }, [user, navigate]);
 
-  if (!hospital || !payload) {
+  useEffect(() => {
+    const generateReport = async () => {
+      if (!payload) return;
+      if (payload.generatedReport?.draft) {
+        setDraft(payload.generatedReport.draft);
+        return;
+      }
+
+      try {
+        setIsGenerating(true);
+        setGenerationError("");
+        const generatedReport = await createDiagnosticDraft(payload);
+        const nextPayload = updatePlaygroundReport({ generatedReport });
+        setPayload(nextPayload);
+        setDraft(generatedReport.draft);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "리포트 생성 중 오류가 발생했습니다.";
+        setGenerationError(message);
+        setDraft(payload.clientDraft ?? "");
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    generateReport();
+  }, [payload]);
+
+  if (!user || !payload) {
     return null;
   }
+
+  const summaryText =
+    payload.generatedReport?.summary ?? "AI 서버가 리포트 요약을 아직 생성하지 않았습니다.";
+  const findingsText =
+    payload.generatedReport?.findings ?? "생성된 상세 소견이 없습니다.";
+  const recommendations = payload.generatedReport?.recommendations ?? [];
 
   const handleCopy = async () => {
     try {
@@ -58,7 +95,7 @@ export function ModelInferenceReportPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4 bg-gray-50">
+    <div className="cohere-page py-12 px-4">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex items-center justify-between gap-4">
           <Button variant="ghost" onClick={() => navigate("/playground")}>
@@ -81,9 +118,9 @@ export function ModelInferenceReportPage() {
           <p className="text-gray-600">AI 진단 결과를 바탕으로 생성된 초안을 검토하고 수정할 수 있습니다.</p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="w-full">
-            <Card className="p-8 border-2 shadow-sm md:sticky md:top-8">
+            <Card className="p-8 border-2 shadow-sm lg:sticky lg:top-8">
               <h3 className="font-bold text-xl mb-6 flex items-center gap-2 text-gray-800">
                 <ImageIcon className="w-6 h-6 text-blue-600" />
                 진단 이미지
@@ -98,10 +135,81 @@ export function ModelInferenceReportPage() {
             </Card>
           </div>
 
-          <div className="w-full space-y-8">
+          <div className="w-full">
             <Card className="p-8 border-2 shadow-sm">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <h3 className="font-bold text-xl flex items-center gap-2 text-gray-800">
+                      <FileText className="w-6 h-6 text-[#0f62fe]" />
+                      진단 리포트 초안
+                    </h3>
+                    <p className="mt-2 text-sm text-gray-600">
+                      자동 생성된 초안입니다. 필요한 표현으로 수정한 뒤 복사하거나 다운로드할 수 있습니다.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {generationError && (
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            setIsGenerating(true);
+                            setGenerationError("");
+                            const generatedReport = await createDiagnosticDraft(payload);
+                            const nextPayload = updatePlaygroundReport({ generatedReport });
+                            setPayload(nextPayload);
+                            setDraft(generatedReport.draft);
+                          } catch (error) {
+                            const message =
+                              error instanceof Error ? error.message : "리포트 재생성에 실패했습니다.";
+                            setGenerationError(message);
+                          } finally {
+                            setIsGenerating(false);
+                          }
+                        }}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        재시도
+                      </Button>
+                    )}
+                    <Button variant="outline" onClick={handleCopy}>
+                      <Clipboard className="w-4 h-4 mr-2" />
+                      {copySuccess ? "복사됨" : "복사"}
+                    </Button>
+                    <Button variant="outline" onClick={handleDownload}>
+                      <Download className="w-4 h-4 mr-2" />
+                      TXT 저장
+                    </Button>
+                  </div>
+                </div>
+
+                {isGenerating && (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-slate-800 flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    AI 서버에서 진단 리포트 초안을 생성 중입니다.
+                  </div>
+                )}
+
+                {generationError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                    {generationError}
+                  </div>
+                )}
+
+                <textarea
+                  value={draft}
+                  onChange={(e) => setDraft(e.target.value)}
+                  className="min-h-[720px] w-full rounded-lg border border-gray-300 bg-white p-4 text-sm leading-7 text-gray-800 shadow-sm focus:border-[#0f62fe] focus:outline-none focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+            </Card>
+          </div>
+
+          <div className="w-full">
+            <Card className="p-8 border-2 shadow-sm lg:sticky lg:top-8">
               <h3 className="font-bold text-xl mb-6 flex items-center gap-2 text-gray-800">
-                <AlertCircle className="w-6 h-6 text-orange-500" />
+                <AlertCircle className="w-6 h-6 text-[#0f62fe]" />
                 결과 요약
               </h3>
               <div className="space-y-4">
@@ -111,7 +219,9 @@ export function ModelInferenceReportPage() {
                 </div>
                 <div className="rounded-lg border bg-gray-50 p-4">
                   <p className="text-sm text-gray-500 mb-1">생성 시각</p>
-                  <p className="font-semibold text-gray-900">{payload.generatedAt}</p>
+                  <p className="font-semibold text-gray-900">
+                    {payload.generatedReport?.generatedAt ?? payload.generatedAt}
+                  </p>
                 </div>
                 <div className="rounded-lg border bg-gray-50 p-4">
                   <p className="text-sm text-gray-500 mb-3">상위 예측 결과</p>
@@ -124,38 +234,28 @@ export function ModelInferenceReportPage() {
                     ))}
                   </div>
                 </div>
-              </div>
-            </Card>
-
-            <Card className="p-8 border-2 shadow-sm">
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="rounded-lg border bg-gray-50 p-4 space-y-3">
                   <div>
-                    <h3 className="font-bold text-xl flex items-center gap-2 text-gray-800">
-                      <FileText className="w-6 h-6 text-orange-600" />
-                      진단 리포트 초안
-                    </h3>
-                    <p className="mt-2 text-sm text-gray-600">
-                      자동 생성된 초안입니다. 필요한 표현으로 수정한 뒤 복사하거나 다운로드할 수 있습니다.
-                    </p>
+                    <p className="text-sm text-gray-500 mb-1">LLM 요약</p>
+                    <p className="text-sm text-gray-800 leading-6">{summaryText}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={handleCopy}>
-                      <Clipboard className="w-4 h-4 mr-2" />
-                      {copySuccess ? "복사됨" : "복사"}
-                    </Button>
-                    <Button variant="outline" onClick={handleDownload}>
-                      <Download className="w-4 h-4 mr-2" />
-                      TXT 저장
-                    </Button>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">상세 소견</p>
+                    <p className="text-sm text-gray-800 leading-6">{findingsText}</p>
                   </div>
+                  {recommendations.length > 0 && (
+                    <div>
+                      <p className="text-sm text-gray-500 mb-1">권고 사항</p>
+                      <div className="space-y-1">
+                        {recommendations.map((item, index) => (
+                          <p key={`${item}-${index}`} className="text-sm text-gray-800 leading-6">
+                            {index + 1}. {item}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                <textarea
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  className="min-h-[420px] w-full rounded-lg border border-gray-300 bg-white p-4 text-sm leading-7 text-gray-800 shadow-sm focus:border-orange-400 focus:outline-none focus:ring-2 focus:ring-orange-100"
-                />
               </div>
             </Card>
           </div>

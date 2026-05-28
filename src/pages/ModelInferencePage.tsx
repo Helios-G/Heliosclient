@@ -20,7 +20,6 @@ import { ensureGpuBackend } from "../lib/tfBackend";
 import {
   PLAYGROUND_MODELS,
   getPlaygroundModelById,
-  type PlaygroundModelSpec,
 } from "../data/playgroundModels";
 import { savePlaygroundReport } from "../lib/playgroundReport";
 import {
@@ -37,7 +36,7 @@ import {
 export function ModelInferencePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { hospital } = useAuth();
+  const { user } = useAuth();
   const [selectedModelId, setSelectedModelId] = useState(() => getPlaygroundModelById(searchParams.get("model")).id);
   const [model, setModel] = useState<tf.LayersModel | tf.GraphModel | null>(null);
   const [imageURL, setImageURL] = useState<string | null>(null);
@@ -129,7 +128,7 @@ export function ModelInferencePage() {
     };
   }, []);
 
-  if (!hospital) return null;
+  if (!user) return null;
 
   const handleModelSelect = (modelId: string) => {
     if (modelId === selectedModelId) {
@@ -186,14 +185,14 @@ export function ModelInferencePage() {
       .sort((a, b) => b.score - a.score);
   };
 
-  const buildReportDraft = (nextResults: { name: string; score: number }[], modelSpec: PlaygroundModelSpec) => {
+  const buildReportDraft = (nextResults: { name: string; score: number }[]) => {
     const generatedAt = new Date().toLocaleString("ko-KR");
     const top1 = nextResults[0];
     const top2 = nextResults[1];
     const top3 = nextResults[2];
 
     const recommendation =
-      modelSpec.inferenceProfile === "chexpert-xray"
+      selectedModel.inferenceProfile === "chexpert-xray"
         ? "영상의학과 판독과 임상 증상, 과거 영상과의 비교를 통해 최종 판단하시기 바랍니다."
         : "안과 전문의 판독과 안저 소견, 환자 병력 정보를 함께 검토하시기 바랍니다.";
 
@@ -202,8 +201,8 @@ export function ModelInferencePage() {
       draft: [
         "[AI 진단 리포트 초안]",
         `작성 시각: ${generatedAt}`,
-        `사용 모델: ${modelSpec.title}`,
-        `대상 도메인: ${modelSpec.domainLabel}`,
+        `사용 모델: ${selectedModel.title}`,
+        `대상 도메인: ${selectedModel.domainLabel}`,
         "",
         "1. 요약",
         `- AI 분석 결과 가장 높은 가능성은 ${top1?.name ?? "-"} (${top1?.score.toFixed(1) ?? "0.0"}%) 입니다.`,
@@ -211,7 +210,7 @@ export function ModelInferencePage() {
         top3 ? `- 세 번째 후보는 ${top3.name} (${top3.score.toFixed(1)}%) 입니다.` : "- 세 번째 후보 없음",
         "",
         "2. AI 소견",
-        `- 입력 영상은 ${modelSpec.domainLabel} 기준으로 분석되었습니다.`,
+        `- 입력 영상은 ${selectedModel.domainLabel} 기준으로 분석되었습니다.`,
         `- 상위 예측 클래스는 ${top1?.name ?? "-"}이며, 확률은 ${top1?.score.toFixed(1) ?? "0.0"}%입니다.`,
         "- 결과는 보조 참고용이며 단독으로 확정 진단에 사용하면 안 됩니다.",
         "",
@@ -266,7 +265,7 @@ export function ModelInferencePage() {
           : await buildDrResults(prediction);
 
       setResults(chartData);
-      const report = buildReportDraft(chartData, selectedModel);
+      const report = buildReportDraft(chartData);
       if (imageURL) {
         savePlaygroundReport({
           generatedAt: report.generatedAt,
@@ -276,7 +275,8 @@ export function ModelInferencePage() {
           imageUrl: imageURL,
           imageFileName,
           results: chartData,
-          draft: report.draft,
+          clientDraft: report.draft,
+          generatedReport: undefined,
         });
       }
       setReportReady(true);
@@ -292,11 +292,12 @@ export function ModelInferencePage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4 bg-gray-50">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-10 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI 진단실 (Playground)</h1>
-          <p className="text-gray-600">
+    <div className="min-h-screen bg-[#f6f8fb] px-4 py-12">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-10">
+          <p className="clinical-kicker mb-2">Clinical AI Review</p>
+          <h1 className="mb-2 text-3xl font-semibold text-slate-950">AI 진단실</h1>
+          <p className="max-w-3xl text-slate-600">
             모델 파일을 따로 관리하지 않아도, 필요한 모델을 고르면 자동으로 불러와 바로 테스트할 수 있습니다.
           </p>
         </div>
@@ -307,9 +308,9 @@ export function ModelInferencePage() {
           <div className="lg:col-span-1 space-y-6">
             
             {/* 1. 모델 선택 카드 */}
-            <Card className={`p-6 border-2 transition-colors ${model ? 'border-green-200 bg-green-50' : 'border-dashed border-gray-300'}`}>
-              <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-gray-800">
-                <Cpu className="w-5 h-5 text-orange-600" />
+            <Card className={`p-6 transition-colors ${model ? 'border-green-200 bg-green-50' : 'border-dashed border-slate-300 bg-white'}`}>
+              <h3 className="mb-4 flex items-center gap-2 text-lg font-semibold text-slate-950">
+                <Cpu className="w-5 h-5 text-[#0f62fe]" />
                 1. 모델 선택
               </h3>
 
@@ -324,7 +325,7 @@ export function ModelInferencePage() {
                       className={`w-full rounded-lg border p-4 text-left transition ${
                         isSelected
                           ? "border-green-400 bg-green-50 shadow-sm"
-                          : "border-gray-200 bg-white hover:border-orange-300"
+                          : "border-gray-200 bg-white hover:border-[#0f62fe]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -337,7 +338,7 @@ export function ModelInferencePage() {
                             <span className="text-xs font-medium text-green-700">로드 완료</span>
                           ) : null}
                           {isSelected && isModelLoading ? (
-                            <span className="text-xs font-medium text-orange-700">자동 로드 중</span>
+                            <span className="text-xs font-medium text-[#0f62fe]">자동 로드 중</span>
                           ) : null}
                           {isSelected ? (
                             <CheckCircle2 className="h-5 w-5 text-green-600" />
@@ -371,7 +372,7 @@ export function ModelInferencePage() {
               disabled={!model || !imageURL || isProcessing || isModelLoading}
               className="w-full py-6 text-lg font-bold shadow-lg transition-all hover:scale-[1.02]"
               style={{ 
-                backgroundColor: model && imageURL && !isModelLoading ? '#6B3131' : '#E5E7EB',
+                backgroundColor: model && imageURL && !isModelLoading ? '#0f62fe' : '#E5E7EB',
                 color: model && imageURL && !isModelLoading ? 'white' : '#9CA3AF',
                 cursor: model && imageURL && !isModelLoading ? 'pointer' : 'not-allowed'
               }}
@@ -418,9 +419,9 @@ export function ModelInferencePage() {
 
           {/* [오른쪽] 결과 패널 (수정됨) */}
           <div className="lg:col-span-2">
-            <Card className="p-8 border-2 shadow-sm mb-8">
+            <Card className="mb-8 border border-slate-200 bg-white p-8 shadow-sm">
               <div className="flex items-center justify-between gap-4 mb-6">
-                <h3 className="font-bold text-xl flex items-center gap-2 text-gray-800">
+                <h3 className="flex items-center gap-2 text-xl font-semibold text-slate-950">
                   <ImageIcon className="w-6 h-6 text-blue-600" />
                   의료 이미지 업로드
                 </h3>
@@ -462,8 +463,8 @@ export function ModelInferencePage() {
             </Card>
 
             {/* ✅ h-full 제거하여 무한 확장 방지 */}
-            <Card className="p-8 border-2 shadow-sm">
-              <h3 className="font-bold text-xl mb-6 flex items-center gap-2 text-gray-800">
+            <Card className="border border-slate-200 bg-white p-8 shadow-sm">
+              <h3 className="mb-6 flex items-center gap-2 text-xl font-semibold text-slate-950">
                 <Activity className="w-6 h-6 text-green-600" /> 
                 진단 결과 리포트
               </h3>
@@ -505,8 +506,8 @@ export function ModelInferencePage() {
                   
                   {/* 텍스트 결과 */}
                   <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h4 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-                      <AlertCircle className="w-5 h-5 text-orange-500" />
+                    <h4 className="mb-2 flex items-center gap-2 font-semibold text-slate-950">
+                      <AlertCircle className="h-5 w-5 text-amber-500" />
                       AI 소견:
                     </h4>
                     <p className="text-gray-700">

@@ -1,7 +1,14 @@
 import { Button } from "./ui/button";
-import { Link, useNavigate, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Building2, ChevronDown, Activity } from "lucide-react";
+import {
+  Activity,
+  Building2,
+  ChevronDown,
+  Database,
+  LogIn,
+  ShieldCheck,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,157 +16,108 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
-import logo from "../assets/logo.png";
+import logo from "../assets/logo-options/helios-logo-orbit.svg";
+
+const navItems = [
+  { label: "Overview", to: "/" },
+  { label: "Sessions", to: "/session/list" },
+  { label: "Models", to: "/download" },
+];
 
 export function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoggedIn, user, isAdmin, logout } = useAuth();
 
-  const handleSectionClick = (sectionId: string) => {
-    if (location.pathname !== '/') {
-      navigate('/');
-      setTimeout(() => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
-      }, 100);
-    } else {
-      const element = document.getElementById(sectionId);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
-    }
-  };
-
   const handleLogout = () => {
     logout();
-    navigate('/');
+    navigate("/");
   };
 
   return (
-    <header className="border-b border-gray-200 bg-white sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link 
+    <header className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/92 backdrop-blur">
+      <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <Link
           to="/"
-          className="flex items-center gap-2 flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+          className="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0f62fe]"
         >
-          <img
-            src={logo}
-            alt="HELIOS Logo"
-            style={{ width: "140px", height: "auto" }}
-            className="object-contain"
-          />
+          <img src={logo} alt="HELIOS" className="h-10 w-auto object-contain" />
         </Link>
 
-        {/* Navigation */}
-        <nav className="hidden md:flex items-center gap-8">
-          <Link 
-            to="/"
-            className="text-gray-700 hover:opacity-70 transition-opacity"
-          >
-            홈
-          </Link>
-          <button 
-            onClick={() => handleSectionClick('about')}
-            className="text-gray-700 hover:opacity-70 transition-opacity"
-          >
-            서비스 소개
-          </button>
-          <Link 
-            to="/upload"
-            className="text-gray-700 hover:opacity-70 transition-opacity"
-          >
-            학습 참여
-          </Link>
-          <Link 
-            to="/download"
-            className="text-gray-700 hover:opacity-70 transition-opacity"
-          >
-            모델 다운로드
-          </Link>
-          
-          {/* ✅ [수정] 로그인한 경우에만 'AI 진단실' 메뉴 표시 */}
+        <nav className="hidden items-center gap-1 md:flex">
+          {navItems.map((item) => {
+            const active =
+              item.to === "/" ? location.pathname === "/" : location.pathname.startsWith(item.to);
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                  active
+                    ? "bg-blue-50 text-[#0f62fe]"
+                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                }`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
           {isLoggedIn && (
-            <Link 
-              to="/playground" 
-              className="text-sm font-bold text-orange-600 hover:text-orange-700 flex items-center gap-1"
+            <Link
+              to="/playground"
+              className={`ml-1 inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
+                location.pathname.startsWith("/playground")
+                  ? "bg-blue-50 text-[#0f62fe]"
+                  : "text-slate-700 hover:bg-slate-100"
+              }`}
             >
-              <Activity className="w-4 h-4" />
-              AI 진단실
+              <Activity className="h-4 w-4" />
+              AI Review
             </Link>
           )}
         </nav>
 
-        {/* Auth Buttons or User Menu */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {isLoggedIn && user ? (
-            // 로그인된 상태
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="outline"
-                  className="gap-2 border-2 hover:border-[#FF9500] bg-white"
-                >
-                  <Building2 className="w-4 h-4" style={{ color: '#FF9500' }} />
-                  <span>{user.name}</span>
-                  <ChevronDown className="w-4 h-4" />
+                <Button variant="outline" className="h-9 border-slate-300 bg-white text-slate-800">
+                  <Building2 className="h-4 w-4 text-[#0f62fe]" />
+                  <span className="hidden max-w-32 truncate sm:inline">{user.name}</span>
+                  <ChevronDown className="h-4 w-4 text-slate-500" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem 
-                  onClick={() => navigate('/mypage')}
-                  className="cursor-pointer"
-                >
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={() => navigate("/mypage")} className="cursor-pointer">
+                  <ShieldCheck className="mr-2 h-4 w-4" />
                   회원 정보
                 </DropdownMenuItem>
-                {/* 대시보드 메뉴는 필요 시 활성화 */}
-                {/* <DropdownMenuItem 
-                  onClick={() => navigate('/dashboard')}
-                  className="cursor-pointer"
-                >
-                  대시보드
-                </DropdownMenuItem> */}
+                <DropdownMenuItem onClick={() => navigate("/session/list")} className="cursor-pointer">
+                  <Database className="mr-2 h-4 w-4" />
+                  세션 콘솔
+                </DropdownMenuItem>
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => navigate('/admin')}
-                      className="cursor-pointer"
-                      style={{ color: '#FF9500' }}
-                    >
+                    <DropdownMenuItem onClick={() => navigate("/admin")} className="cursor-pointer">
                       관리자 페이지
                     </DropdownMenuItem>
                   </>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleLogout}
-                  className="cursor-pointer text-red-600"
-                >
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-red-600">
                   로그아웃
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            // 로그인 안된 상태
             <>
-              <Button 
-                onClick={() => navigate('/login')}
-                style={{ backgroundColor: '#FF9500' }}
-                className="text-white hover:opacity-90"
-              >
+              <Button variant="ghost" className="hidden text-slate-700 sm:inline-flex" onClick={() => navigate("/login")}>
+                <LogIn className="h-4 w-4" />
                 로그인
               </Button>
-              <Button 
-                variant="outline"
-                onClick={() => navigate('/signup')}
-                style={{ borderColor: '#FF9500', color: '#FF9500' }}
-                className="border-2 hover:bg-orange-50"
-              >
-                회원가입
+              <Button className="bg-[#0f62fe] text-white hover:bg-[#0043ce]" onClick={() => navigate("/signup")}>
+                기관 등록
               </Button>
             </>
           )}

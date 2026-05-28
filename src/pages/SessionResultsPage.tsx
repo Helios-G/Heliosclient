@@ -15,6 +15,7 @@ import {
   Clock,
   Check
 } from "lucide-react";
+import { CohereMetricCard, CoherePage, CoherePageHeader } from "../components/CoherePage";
 
 export function SessionResultsPage() {
   const { sessionId } = useParams();
@@ -71,16 +72,21 @@ export function SessionResultsPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4 bg-white">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="mb-12 text-center">
-          <h1 className="text-gray-800 mb-2">학습진행 현황</h1>
-          <p className="text-gray-600">{results.sessionTitle}</p>
+    <CoherePage>
+        <CoherePageHeader
+          eyebrow="Training Report"
+          title="학습진행 현황"
+          description={results.sessionTitle}
+        />
+
+        <div className="cohere-stat-grid mb-8">
+          <CohereMetricCard label="최종 정확도" value={`${(results.finalAccuracy * 100).toFixed(2)}%`} caption="Accuracy" />
+          <CohereMetricCard label="최종 손실" value={results.finalLoss.toFixed(4)} caption="Loss" tone="cyan" />
+          <CohereMetricCard label="총 라운드" value={results.totalRounds} caption={results.trainingDuration} tone="violet" />
         </div>
 
         {/* 메인 결과 카드 (기존 디자인 유지) */}
-        <Card className="p-10 mb-8 border-2 shadow-lg">
+        <Card className="cohere-surface mb-8 p-8 shadow-none md:p-10">
           {/* 학습 완료 상태 배지 */}
           <div className="flex justify-center mb-8">
             <div 
@@ -94,55 +100,43 @@ export function SessionResultsPage() {
           {/* 학습 완료 섹션 */}
           <div className="space-y-8">
             <div>
-              <h2 style={{ color: '#6B3131' }} className="mb-6 text-center">학습 완료</h2>
+              <h2 style={{ color: '#071225' }} className="mb-6 text-center">학습 완료</h2>
             </div>
 
             {/* 결과 요약 그리드 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* 모델 구조 */}
-              <div 
-                className="p-6 rounded-lg border-2"
-                style={{ backgroundColor: '#FFF9F5' }}
-              >
+              <div className="cohere-soft-card p-6">
                 <div className="flex items-center gap-3 mb-3">
-                  <Layers className="w-5 h-5" style={{ color: '#FF9500' }} />
-                  <h4 style={{ color: '#6B3131' }}>모델 구조</h4>
+                  <Layers className="w-5 h-5" style={{ color: '#0f62fe' }} />
+                  <h4 style={{ color: '#071225' }}>모델 구조</h4>
                 </div>
                 <p className="text-2xl">{results.modelArchitecture}</p>
               </div>
 
               {/* 참여 기관 수 */}
-              <div 
-                className="p-6 rounded-lg border-2"
-                style={{ backgroundColor: '#FFF9F5' }}
-              >
+              <div className="cohere-soft-card p-6">
                 <div className="flex items-center gap-3 mb-3">
-                  <Building2 className="w-5 h-5" style={{ color: '#FF9500' }} />
-                  <h4 style={{ color: '#6B3131' }}>참여 기관 수</h4>
+                  <Building2 className="w-5 h-5" style={{ color: '#0f62fe' }} />
+                  <h4 style={{ color: '#071225' }}>참여 기관 수</h4>
                 </div>
                 <p className="text-2xl">{results.participatingUsers}</p>
               </div>
 
               {/* 라운드 수 */}
-              <div 
-                className="p-6 rounded-lg border-2"
-                style={{ backgroundColor: '#FFF9F5' }}
-              >
+              <div className="cohere-soft-card p-6">
                 <div className="flex items-center gap-3 mb-3">
-                  <TrendingUp className="w-5 h-5" style={{ color: '#FF9500' }} />
-                  <h4 style={{ color: '#6B3131' }}>총 라운드 수</h4>
+                  <TrendingUp className="w-5 h-5" style={{ color: '#0f62fe' }} />
+                  <h4 style={{ color: '#071225' }}>총 라운드 수</h4>
                 </div>
                 <p className="text-2xl">{results.totalRounds} 라운드</p>
               </div>
 
               {/* 학습 소요 시간 */}
-              <div 
-                className="p-6 rounded-lg border-2"
-                style={{ backgroundColor: '#FFF9F5' }}
-              >
+              <div className="cohere-soft-card p-6">
                 <div className="flex items-center gap-3 mb-3">
-                  <Clock className="w-5 h-5" style={{ color: '#FF9500' }} />
-                  <h4 style={{ color: '#6B3131' }}>학습 소요 시간</h4>
+                  <Clock className="w-5 h-5" style={{ color: '#0f62fe' }} />
+                  <h4 style={{ color: '#071225' }}>학습 소요 시간</h4>
                 </div>
                 <p className="text-2xl">{results.trainingDuration}</p>
               </div>
@@ -150,21 +144,18 @@ export function SessionResultsPage() {
 
             {/* 성능 지표 */}
             <div>
-              <h3 className="mb-4" style={{ color: '#6B3131' }}>결과요약</h3>
+              <h3 className="mb-4" style={{ color: '#071225' }}>결과요약</h3>
               
               <div className="space-y-4">
                 {/* 정확도 */}
-                <div 
-                  className="p-6 rounded-lg border-2"
-                  style={{ backgroundColor: '#FFF9F5' }}
-                >
+                <div className="cohere-soft-card p-6">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h4 style={{ color: '#6B3131' }} className="mb-1">최종 정확도 (Accuracy)</h4>
+                      <h4 style={{ color: '#071225' }} className="mb-1">최종 정확도 (Accuracy)</h4>
                       <p className="text-sm text-gray-600">모델의 예측 정확도</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-3xl" style={{ color: '#FF9500' }}>
+                      <p className="text-3xl" style={{ color: '#0f62fe' }}>
                         {(results.finalAccuracy * 100).toFixed(2)}%
                       </p>
                     </div>
@@ -172,17 +163,14 @@ export function SessionResultsPage() {
                 </div>
 
                 {/* Loss */}
-                <div 
-                  className="p-6 rounded-lg border-2"
-                  style={{ backgroundColor: '#FFF9F5' }}
-                >
+                <div className="cohere-soft-card p-6">
                   <div className="flex justify-between items-center">
                     <div>
-                      <h4 style={{ color: '#6B3131' }} className="mb-1">최종 손실 (Loss)</h4>
+                      <h4 style={{ color: '#071225' }} className="mb-1">최종 손실 (Loss)</h4>
                       <p className="text-sm text-gray-600">모델의 예측 오차</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-3xl" style={{ color: '#6B3131' }}>
+                      <p className="text-3xl" style={{ color: '#071225' }}>
                         {results.finalLoss.toFixed(4)}
                       </p>
                     </div>
@@ -193,15 +181,12 @@ export function SessionResultsPage() {
 
             {/* 학습 일정 */}
             <div>
-              <h3 className="mb-4" style={{ color: '#6B3131' }}>학습 일정</h3>
+              <h3 className="mb-4" style={{ color: '#071225' }}>학습 일정</h3>
               
-              <div 
-                className="p-6 rounded-lg border-2"
-                style={{ backgroundColor: '#FFF9F5' }}
-              >
+              <div className="cohere-soft-card p-6">
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5" style={{ color: '#FF9500' }} />
+                    <Calendar className="w-5 h-5" style={{ color: '#0f62fe' }} />
                     <div>
                       <p className="text-sm text-gray-600">학습 시작 시간</p>
                       <p className="text-lg">{results.startTime}</p>
@@ -209,7 +194,7 @@ export function SessionResultsPage() {
                   </div>
                   <div className="border-t border-gray-200 my-3"></div>
                   <div className="flex items-center gap-3">
-                    <Calendar className="w-5 h-5" style={{ color: '#FF9500' }} />
+                    <Calendar className="w-5 h-5" style={{ color: '#0f62fe' }} />
                     <div>
                       <p className="text-sm text-gray-600">학습 종료 시간</p>
                       <p className="text-lg">{results.endTime}</p>
@@ -226,14 +211,12 @@ export function SessionResultsPage() {
           <Button
             variant="outline"
             onClick={() => navigate('/')}
-            className="px-8 py-6 border-2"
-            style={{ borderColor: '#6B3131', color: '#6B3131' }}
+            className="border-slate-300 bg-white/80 px-8 py-6"
           >
             홈으로 이동
           </Button>
           <Button 
-            style={{ backgroundColor: '#FF9500' }} 
-            className="text-white hover:opacity-90 px-8 py-6"
+            className="cohere-gradient-button px-8 py-6"
             onClick={handleDownload} 
           >
             <Download className="w-5 h-5 mr-2" />
@@ -248,7 +231,6 @@ export function SessionResultsPage() {
             모델 사용 시 주의사항은 다운로드 시 제공되는 문서를 참고해주세요.
           </p>
         </Card>
-      </div>
-    </div>
+    </CoherePage>
   );
 }

@@ -169,10 +169,7 @@ export function SessionDetailPage() {
   };
 
   return (
-    <div
-      className="min-h-screen py-12 px-4"
-      style={{ backgroundColor: "#FFF5EB" }}
-    >
+    <div className="cohere-page py-12 px-4">
       <div className="max-w-6xl mx-auto">
         {/* 뒤로가기 버튼 */}
         <Button
@@ -189,7 +186,7 @@ export function SessionDetailPage() {
           <div className="flex items-start justify-between">
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3">
-                <h1 style={{ color: "#6B3131" }}>{session.title}</h1>
+                <h1 style={{ color: "#071225" }}>{session.title}</h1>
                 <Badge
                   className={`${getStatusColor(session.status)} border px-3 py-1`}
                 >
@@ -206,12 +203,12 @@ export function SessionDetailPage() {
           <div className="lg:col-span-2 space-y-6">
             {/* 기본 정보 */}
             <Card className="p-6 border-2">
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>
+              <h3 className="mb-4" style={{ color: "#071225" }}>
                 세션 기본 정보
               </h3>
               <div className="space-y-4">
                 <div className="flex items-start gap-3">
-                  <Database className="h-5 w-5 mt-0.5" style={{ color: "#FF9500" }} />
+                  <Database className="h-5 w-5 mt-0.5" style={{ color: "#0f62fe" }} />
                   <div className="flex-1">
                     <p className="text-gray-600 mb-1">데이터 형식</p>
                     <p className="font-medium">{session.dataType}</p>
@@ -219,7 +216,7 @@ export function SessionDetailPage() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Users className="h-5 w-5 mt-0.5" style={{ color: "#FF9500" }} />
+                  <Users className="h-5 w-5 mt-0.5" style={{ color: "#0f62fe" }} />
                   <div className="flex-1">
                     <p className="text-gray-600 mb-1">참여 기관</p>
                     <p className="font-medium">
@@ -229,7 +226,7 @@ export function SessionDetailPage() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Activity className="h-5 w-5 mt-0.5" style={{ color: "#FF9500" }} />
+                  <Activity className="h-5 w-5 mt-0.5" style={{ color: "#0f62fe" }} />
                   <div className="flex-1">
                     <p className="text-gray-600 mb-1">학습 라운드</p>
                     <p className="font-medium">
@@ -241,7 +238,7 @@ export function SessionDetailPage() {
                 </div>
 
                 <div className="flex items-start gap-3">
-                  <Calendar className="h-5 w-5 mt-0.5" style={{ color: "#FF9500" }} />
+                  <Calendar className="h-5 w-5 mt-0.5" style={{ color: "#0f62fe" }} />
                   <div className="flex-1">
                     <p className="text-gray-600 mb-1">생성일</p>
                     <p className="font-medium">{session.createdDate}</p>
@@ -264,7 +261,7 @@ export function SessionDetailPage() {
 
             {/* 질환 클래스 */}
             <Card className="p-6 border-2">
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>
+              <h3 className="mb-4" style={{ color: "#071225" }}>
                 질환 클래스 ({session.diseaseClasses.length}개)
               </h3>
               <div className="flex flex-wrap gap-2">
@@ -274,9 +271,9 @@ export function SessionDetailPage() {
                     variant="outline"
                     className="px-3 py-1"
                     style={{
-                      borderColor: "#FF9500",
-                      color: "#6B3131",
-                      backgroundColor: "#FFF9F5",
+                      borderColor: "#0f62fe",
+                      color: "#071225",
+                      backgroundColor: "#f7fbff",
                     }}
                   >
                     {diseaseClass}
@@ -287,7 +284,7 @@ export function SessionDetailPage() {
 
             {/* 참여 병원 */}
             <Card className="p-6 border-2">
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>
+              <h3 className="mb-4" style={{ color: "#071225" }}>
                 참여 중인 병원
               </h3>
               <div className="space-y-2">
@@ -295,18 +292,18 @@ export function SessionDetailPage() {
                   <div
                     key={index}
                     className="flex items-center gap-2 p-3 rounded-lg"
-                    style={{ backgroundColor: "#FFF9F5" }}
+                    style={{ backgroundColor: "#f7fbff" }}
                   >
                     <CheckCircle2
                       className="h-4 w-4"
-                      style={{ color: "#FF9500" }}
+                      style={{ color: "#0f62fe" }}
                     />
                     <span className="font-medium">{hosp}</span>
                     {index === 0 && (
                       <Badge
                         variant="outline"
                         className="ml-auto"
-                        style={{ borderColor: "#6B3131", color: "#6B3131" }}
+                        style={{ borderColor: "#071225", color: "#071225" }}
                       >
                         생성자
                       </Badge>
@@ -330,8 +327,8 @@ export function SessionDetailPage() {
 
           {/* 우측: 액션 */}
           <div className="space-y-4">
-            <Card className="p-6 border-2" style={{ backgroundColor: "#FFF9F5" }}>
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>
+            <Card className="p-6 border-2" style={{ backgroundColor: "#f7fbff" }}>
+              <h3 className="mb-4" style={{ color: "#071225" }}>
                 세션 참여
               </h3>
 
@@ -347,7 +344,7 @@ export function SessionDetailPage() {
                   <Button
                     onClick={() => navigate(`/session/${session.id}/results`)}
                     className="w-full"
-                    style={{ backgroundColor: "#FF9500" }}
+                    style={{ backgroundColor: "#0f62fe" }}
                   >
                     결과 보기
                   </Button>
@@ -355,7 +352,7 @@ export function SessionDetailPage() {
                     onClick={() => navigate("/model/download")}
                     variant="outline"
                     className="w-full"
-                    style={{ borderColor: "#6B3131", color: "#6B3131" }}
+                    style={{ borderColor: "#071225", color: "#071225" }}
                   >
                     모델 다운로드
                   </Button>
@@ -365,17 +362,17 @@ export function SessionDetailPage() {
                   <div className="text-center py-4">
                     <Activity
                       className="h-12 w-12 mx-auto mb-2"
-                      style={{ color: "#FF9500" }}
+                      style={{ color: "#0f62fe" }}
                     />
                     <p className="text-gray-600">학습이 진행 중입니다</p>
-                    <p className="mt-2" style={{ color: "#6B3131" }}>
+                    <p className="mt-2" style={{ color: "#071225" }}>
                       라운드 {session.currentRound} / {session.rounds}
                     </p>
                   </div>
                   <Button
                     onClick={() => navigate(`/session/${session.id}/training`)}
                     className="w-full"
-                    style={{ backgroundColor: "#FF9500" }}
+                    style={{ backgroundColor: "#0f62fe" }}
                   >
                     학습 현황 보기
                   </Button>
@@ -385,17 +382,17 @@ export function SessionDetailPage() {
                   <div className="text-center py-4">
                     <Clock
                       className="h-12 w-12 mx-auto mb-2"
-                      style={{ color: "#FF9500" }}
+                      style={{ color: "#0f62fe" }}
                     />
                     <p className="text-gray-600">참여 병원을 모집 중입니다</p>
-                    <p className="mt-2" style={{ color: "#6B3131" }}>
+                    <p className="mt-2" style={{ color: "#071225" }}>
                       {session.participants} / {session.maxParticipants} 기관
                     </p>
                   </div>
                   <Button
                     onClick={() => navigate(`/session/${session.id}/join`)}
                     className="w-full"
-                    style={{ backgroundColor: "#FF9500" }}
+                    style={{ backgroundColor: "#0f62fe" }}
                   >
                     세션 참여하기
                   </Button>
@@ -405,17 +402,17 @@ export function SessionDetailPage() {
 
             {/* 세션 생성자 정보 */}
             <Card className="p-6 border-2">
-              <h3 className="mb-4" style={{ color: "#6B3131" }}>
+              <h3 className="mb-4" style={{ color: "#071225" }}>
                 세션 생성자
               </h3>
               <div className="text-center">
                 <div
                   className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center"
-                  style={{ backgroundColor: "#FF9500" }}
+                  style={{ backgroundColor: "#0f62fe" }}
                 >
                   <Users className="h-8 w-8 text-white" />
                 </div>
-                <p className="font-medium" style={{ color: "#6B3131" }}>
+                <p className="font-medium" style={{ color: "#071225" }}>
                   {session.createdBy}
                 </p>
                 <p className="text-gray-500 mt-1">생성일: {session.createdDate}</p>

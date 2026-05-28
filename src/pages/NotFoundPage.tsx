@@ -6,12 +6,12 @@ export function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: '#FFF5EB' }}>
+    <div className="cohere-page flex items-center justify-center px-4">
       <div className="text-center max-w-md">
-        <h1 style={{ color: '#FF9500', fontSize: '6rem', lineHeight: '1' }}>
+        <h1 style={{ color: '#0f62fe', fontSize: '6rem', lineHeight: '1' }}>
           404
         </h1>
-        <h2 className="mt-4 mb-4" style={{ color: '#6B3131' }}>
+        <h2 className="mt-4 mb-4" style={{ color: '#071225' }}>
           페이지를 찾을 수 없습니다
         </h2>
         <p className="text-gray-600 mb-8">
@@ -29,7 +29,7 @@ export function NotFoundPage() {
           </Button>
           <Button
             onClick={() => navigate('/')}
-            style={{ backgroundColor: '#FF9500' }}
+            style={{ backgroundColor: '#0f62fe' }}
             className="text-white gap-2"
           >
             <Home className="w-4 h-4" />

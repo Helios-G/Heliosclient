@@ -14,6 +14,7 @@ import {
   X,
   Cloud
 } from "lucide-react";
+import { CohereMetricCard, CoherePage, CoherePageHeader } from "../components/CoherePage";
 
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 
@@ -156,40 +157,43 @@ export function ModelUploadPage() {
   };
 
   return (
-    <div className="min-h-screen py-12 px-4" style={{ backgroundColor: '#FFFFFF' }}>
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 style={{ color: '#6B3131' }}>모델 업로드</h1>
-          <p className="mt-2 text-gray-600">
-            연합학습을 위한 로컬 학습 모델을 업로드하세요
-          </p>
+    <CoherePage>
+        <CoherePageHeader
+          eyebrow="Model Intake"
+          title="모델 업로드"
+          description="연합학습을 위한 로컬 학습 모델을 업로드하세요."
+        />
+
+        <div className="cohere-stat-grid mb-6">
+          <CohereMetricCard label="최대 크기" value="500MB" caption="업로드 제한" />
+          <CohereMetricCard label="지원 형식" value="6" caption={allowedExtensions.join(", ")} tone="cyan" />
+          <CohereMetricCard label="검증" value="Required" caption="서버 검증 후 등록" tone="violet" />
         </div>
 
         {/* 가이드 섹션 */}
-        <Card className="p-6 mb-6 shadow-lg">
+        <Card className="cohere-surface mb-6 p-6 shadow-none">
           <div className="flex items-start gap-3 mb-4">
-            <Info className="w-5 h-5 mt-0.5" style={{ color: '#FF9500' }} />
+            <Info className="w-5 h-5 mt-0.5" style={{ color: '#0f62fe' }} />
             <div>
-              <h3 className="mb-2" style={{ color: '#6B3131' }}>업로드 가이드</h3>
+              <h3 className="mb-2" style={{ color: '#071225' }}>업로드 가이드</h3>
             </div>
           </div>
           
           <div className="space-y-3 text-gray-700">
             <div className="flex items-start gap-2">
-              <span style={{ color: '#FF9500' }}>•</span>
+              <span style={{ color: '#0f62fe' }}>•</span>
               <p>지원 파일 형식: <span className="font-mono text-sm">{allowedExtensions.join(', ')}</span></p>
             </div>
             <div className="flex items-start gap-2">
-              <span style={{ color: '#FF9500' }}>•</span>
+              <span style={{ color: '#0f62fe' }}>•</span>
               <p>최대 파일 크기: 500MB</p>
             </div>
             <div className="flex items-start gap-2">
-              <span style={{ color: '#FF9500' }}>•</span>
+              <span style={{ color: '#0f62fe' }}>•</span>
               <p>업로드된 모델은 연합학습 서버에서 검증 과정을 거칩니다</p>
             </div>
             <div className="flex items-start gap-2">
-              <span style={{ color: '#FF9500' }}>•</span>
+              <span style={{ color: '#0f62fe' }}>•</span>
               <p>개인정보가 포함되지 않은 순수 모델 파라미터만 업로드해주세요</p>
             </div>
           </div>
@@ -206,26 +210,26 @@ export function ModelUploadPage() {
         </Alert>
 
         {/* 업로드 영역 */}
-        <Card className="p-8 mb-6 shadow-lg">
-          <h3 className="mb-6" style={{ color: '#6B3131' }}>파일 선택</h3>
+        <Card className="cohere-surface mb-6 p-8 shadow-none">
+          <h3 className="mb-6" style={{ color: '#071225' }}>파일 선택</h3>
 
           {/* 드래그 앤 드롭 영역 */}
           <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            className={`border-2 border-dashed rounded-lg p-12 text-center transition-all ${
-              isDragging 
-                ? 'border-[#FF9500] bg-orange-50' 
-                : 'border-gray-300 hover:border-gray-400'
+            className={`rounded-3xl border-2 border-dashed p-12 text-center transition-all ${
+              isDragging
+                ? 'border-[#0f62fe] bg-blue-50'
+                : 'border-blue-200 bg-white/60 hover:border-[#0f62fe]'
             }`}
           >
-            <Cloud className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            
+            <Cloud className="w-16 h-16 mx-auto mb-4 text-[#0f62fe]" />
+
             {selectedFile ? (
               <div className="space-y-3">
                 <div className="flex items-center justify-center gap-3">
-                  <FileText className="w-5 h-5" style={{ color: '#FF9500' }} />
+                  <FileText className="w-5 h-5" style={{ color: '#0f62fe' }} />
                   <span>{selectedFile.name}</span>
                   <Button
                     variant="ghost"
@@ -265,8 +269,7 @@ export function ModelUploadPage() {
             {!selectedFile && (
               <Button
                 onClick={() => fileInputRef.current?.click()}
-                style={{ backgroundColor: '#FF9500' }}
-                className="text-white mt-4"
+                className="cohere-gradient-button mt-4"
               >
                 <Upload className="w-4 h-4 mr-2" />
                 파일 선택
@@ -279,8 +282,7 @@ export function ModelUploadPage() {
             <div className="mt-6">
               <Button
                 onClick={handleUpload}
-                style={{ backgroundColor: '#FF9500' }}
-                className="text-white w-full py-6"
+                className="cohere-gradient-button w-full py-6"
                 disabled={uploadResult.status === "uploading"}
               >
                 <Upload className="w-5 h-5 mr-2" />
@@ -341,7 +343,6 @@ export function ModelUploadPage() {
             회원 정보 페이지로 이동
           </Button>
         </div>
-      </div>
-    </div>
+    </CoherePage>
   );
 }

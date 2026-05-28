@@ -3,6 +3,18 @@ export interface PlaygroundResultItem {
   score: number;
 }
 
+export interface PlaygroundGeneratedReport {
+  generatedAt: string;
+  provider: string;
+  model: string;
+  summary: string;
+  findings: string;
+  recommendations: string[];
+  caution: string;
+  draft: string;
+  storedPath: string;
+}
+
 export interface PlaygroundReportPayload {
   generatedAt: string;
   modelId: string;
@@ -11,7 +23,9 @@ export interface PlaygroundReportPayload {
   imageUrl: string;
   imageFileName: string;
   results: PlaygroundResultItem[];
-  draft: string;
+  notes?: string;
+  clientDraft?: string;
+  generatedReport?: PlaygroundGeneratedReport;
 }
 
 const STORAGE_KEY = "helios.playground.report";
@@ -36,3 +50,16 @@ export function clearPlaygroundReport() {
   sessionStorage.removeItem(STORAGE_KEY);
 }
 
+export function updatePlaygroundReport(
+  patch: Partial<PlaygroundReportPayload>,
+): PlaygroundReportPayload | null {
+  const current = loadPlaygroundReport();
+  if (!current) return null;
+
+  const next = {
+    ...current,
+    ...patch,
+  };
+  savePlaygroundReport(next);
+  return next;
+}

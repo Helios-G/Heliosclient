@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios"; // axios 추가
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
+import { Building2, CheckCircle2, FileCheck2 } from "lucide-react";
 
 export function SignUpPage() {
   const navigate = useNavigate();
@@ -47,115 +47,138 @@ export function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen py-16 px-4 bg-white">
-      <div className="max-w-xl mx-auto">
-        {/* 제목 */}
-        <div className="text-center mb-12">
-          <h1 className="text-gray-900 mb-2">회원가입</h1>
-        </div>
+    <div className="cohere-page px-4 py-12">
+      <div className="cohere-page-wide">
+        <div className="cohere-auth-shell">
+          <section className="cohere-auth-visual">
+            <p className="cohere-eyebrow text-white">Institution onboarding</p>
+            <h1>연합학습 네트워크에 기관을 등록하세요</h1>
+            <p>
+              가입 신청 후 관리자 승인 절차를 거치면 의료 영상 라벨링과
+              세션 기반 협업 학습에 참여할 수 있습니다.
+            </p>
+            <div className="cohere-auth-stack">
+              <div className="cohere-auth-row">
+                <span>Step 01</span>
+                <strong>기관 정보 제출</strong>
+              </div>
+              <div className="cohere-auth-row">
+                <span>Step 02</span>
+                <strong>관리자 승인</strong>
+              </div>
+              <div className="cohere-auth-row">
+                <span>Step 03</span>
+                <strong>세션 참여 시작</strong>
+              </div>
+            </div>
+          </section>
 
-        {/* 폼 카드 */}
-        <Card className="p-8 border-2 border-gray-200">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 사용자명 */}
-            <div className="space-y-2">
-              <label htmlFor="userName" className="block text-sm text-gray-900">
-                사용자명
-              </label>
-              <Input
-                id="userName"
-                name="userName"
-                type="text"
-                placeholder="사용자명을 입력해주세요."
-                value={formData.userName}
-                onChange={handleChange}
-                required
-                className="border-gray-300 focus:border-[#FF9500] focus:ring-[#FF9500]"
-              />
+          <section className="cohere-form-card">
+            <div className="mb-8">
+              <p className="cohere-eyebrow">Create account</p>
+              <h2 className="cohere-section-title mt-2">회원가입</h2>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                기관 담당자 정보를 입력하면 승인 대기 상태로 접수됩니다.
+              </p>
             </div>
 
-            {/* 이메일 */}
-            <div className="space-y-2">
-              <label htmlFor="email" className="block text-sm text-gray-900">
-                이메일
-              </label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="example@gmail.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-                className="border-gray-300 focus:border-[#FF9500] focus:ring-[#FF9500]"
-              />
-            </div>
-
-            {/* 비밀번호 */}
-            <div className="space-y-2">
-              <label htmlFor="password" className="block text-sm text-gray-900">
-                비밀번호
-              </label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                placeholder="비밀번호를 입력해주세요."
-                value={formData.password}
-                onChange={handleChange}
-                required
-                className="border-gray-300 focus:border-[#FF9500] focus:ring-[#FF9500]"
-              />
-            </div>
-
-            {/* 사업자 등록 번호 */}
-            <div className="space-y-2">
-              <label htmlFor="businessNumber" className="block text-sm text-gray-900">
-                사업자 등록 번호
-              </label>
-              <div className="flex gap-2 items-center">
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div className="space-y-2">
+                <label htmlFor="userName" className="block text-sm font-semibold text-slate-800">
+                  사용자명
+                </label>
                 <Input
-                  id="businessNumber"
-                  name="businessNumber"
+                  id="userName"
+                  name="userName"
                   type="text"
-                  placeholder="000-00-0000"
-                  value={formData.businessNumber}
+                  placeholder="사용자명을 입력해주세요."
+                  value={formData.userName}
                   onChange={handleChange}
                   required
-                  className="flex-1 border-gray-300 focus:border-[#FF9500] focus:ring-[#FF9500]"
+                  className="h-12 border-slate-300 bg-white focus:border-[#0f62fe] focus:ring-[#0f62fe]"
                 />
-                <Button
-                  type="button"
-                  className="px-6 py-2 bg-[#4A9EFF] text-white hover:bg-[#3A8EEF] rounded-full"
-                >
-                  인증
-                </Button>
               </div>
-              <p className="text-xs text-gray-500">
-                정보수령, 000-00-00000형식으로 기입해주세요
-              </p>
-            </div>
 
-            {/* 약관 동의 */}
-            <div className="pt-4 space-y-3 text-sm">
-              <p className="text-gray-700">
-                가입완료시 개인정보 제공 동의로 간주되며 세부 약관은 하단에서 확인 가능합니다.
-              </p>
-              <p className="text-gray-700">
-                당사에서 발생한 문의를 위 이름과 기관 이름으로 소통하게 됩니다.
-              </p>
-            </div>
+              <div className="space-y-2">
+                <label htmlFor="email" className="block text-sm font-semibold text-slate-800">
+                  이메일
+                </label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="example@gmail.com"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  className="h-12 border-slate-300 bg-white focus:border-[#0f62fe] focus:ring-[#0f62fe]"
+                />
+              </div>
 
-            {/* 가입신청 버튼 */}
-            <Button
-              type="submit"
-              className="w-full py-6 text-white rounded-lg hover:opacity-90"
-              style={{ backgroundColor: '#FF9500' }}
-            >
-              회원가입
-            </Button>
-          </form>
-        </Card>
+              <div className="space-y-2">
+                <label htmlFor="password" className="block text-sm font-semibold text-slate-800">
+                  비밀번호
+                </label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  placeholder="비밀번호를 입력해주세요."
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                  className="h-12 border-slate-300 bg-white focus:border-[#0f62fe] focus:ring-[#0f62fe]"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="businessNumber" className="block text-sm font-semibold text-slate-800">
+                  사업자 등록 번호
+                </label>
+                <div className="flex gap-2 items-center">
+                  <Input
+                    id="businessNumber"
+                    name="businessNumber"
+                    type="text"
+                    placeholder="000-00-0000"
+                    value={formData.businessNumber}
+                    onChange={handleChange}
+                    required
+                    className="h-12 flex-1 border-slate-300 bg-white focus:border-[#0f62fe] focus:ring-[#0f62fe]"
+                  />
+                  <Button
+                    type="button"
+                    className="h-12 rounded-full bg-[#0f62fe] px-5 text-white hover:bg-[#0043ce]"
+                  >
+                    인증
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  000-00-00000 형식으로 기입해주세요.
+                </p>
+              </div>
+
+              <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm text-slate-600">
+                <div className="flex gap-3">
+                  <Building2 className="mt-0.5 h-4 w-4 text-[#0f62fe]" />
+                  <span>가입 신청은 기관 단위로 검토됩니다.</span>
+                </div>
+                <div className="flex gap-3">
+                  <FileCheck2 className="mt-0.5 h-4 w-4 text-[#0f62fe]" />
+                  <span>가입 완료 시 개인정보 제공 동의로 간주됩니다.</span>
+                </div>
+                <div className="flex gap-3">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 text-[#0f62fe]" />
+                  <span>승인 후 세션 생성과 참여 기능을 사용할 수 있습니다.</span>
+                </div>
+              </div>
+
+              <Button type="submit" className="cohere-gradient-button h-12 w-full">
+                회원가입
+              </Button>
+            </form>
+          </section>
+        </div>
       </div>
     </div>
   );
