@@ -10,8 +10,7 @@ export function SignUpPage() {
   const [formData, setFormData] = useState({
     userName: "",
     email: "",
-    password: "",
-    businessNumber: ""
+    password: ""
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,8 +21,7 @@ export function SignUpPage() {
       const response = await axios.post("http://localhost:8081/auth/signup", {
         name: formData.userName,     // 백엔드 SignupRequest 필드명 매핑
         email: formData.email,
-        password: formData.password,
-        businessNumber: formData.businessNumber
+        password: formData.password
       });
 
       if (response.status === 200 || response.status === 201) {
@@ -129,33 +127,6 @@ export function SignUpPage() {
                   required
                   className="h-12 border-slate-300 bg-white focus:border-[#0f62fe] focus:ring-[#0f62fe]"
                 />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="businessNumber" className="block text-sm font-semibold text-slate-800">
-                  사업자 등록 번호
-                </label>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    id="businessNumber"
-                    name="businessNumber"
-                    type="text"
-                    placeholder="000-00-0000"
-                    value={formData.businessNumber}
-                    onChange={handleChange}
-                    required
-                    className="h-12 flex-1 border-slate-300 bg-white focus:border-[#0f62fe] focus:ring-[#0f62fe]"
-                  />
-                  <Button
-                    type="button"
-                    className="h-12 rounded-full bg-[#0f62fe] px-5 text-white hover:bg-[#0043ce]"
-                  >
-                    인증
-                  </Button>
-                </div>
-                <p className="text-xs text-slate-500">
-                  000-00-00000 형식으로 기입해주세요.
-                </p>
               </div>
 
               <div className="grid gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 text-sm text-slate-600">
