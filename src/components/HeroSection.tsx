@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import {
+  Activity,
   ArrowRight,
   BrainCircuit,
   DatabaseZap,
@@ -131,28 +132,12 @@ export function HeroSection() {
 
             <div className="cohere-main-visual">
               <div className="cohere-orbit">
-                <div className="cohere-flow-map">
-                  <div className="cohere-flow-card cohere-flow-card-a">
-                    <UploadCloud className="h-5 w-5" />
-                    <span>Local Data</span>
-                  </div>
-                  <div className="cohere-flow-card cohere-flow-card-b">
-                    <ScanLine className="h-5 w-5" />
-                    <span>Labeling</span>
-                  </div>
-                  <div className="cohere-flow-core">
-                    <Network className="h-8 w-8" />
-                    <strong>HELIOS</strong>
-                    <span>Private Workspace</span>
-                  </div>
-                  <div className="cohere-flow-card cohere-flow-card-c">
-                    <Layers3 className="h-5 w-5" />
-                    <span>Model</span>
-                  </div>
-                  <div className="cohere-flow-card cohere-flow-card-d">
-                    <FileSearch className="h-5 w-5" />
-                    <span>AI Report</span>
-                  </div>
+                <div className="cohere-node cohere-node-a">X-ray</div>
+                <div className="cohere-node cohere-node-b">Fundus</div>
+                <div className="cohere-node cohere-node-c">AI</div>
+                <div className="cohere-core">
+                  <Activity className="h-7 w-7" />
+                  FedAvg
                 </div>
               </div>
 
