@@ -26,6 +26,13 @@ export interface PlaygroundReportPayload {
   notes?: string;
   clientDraft?: string;
   generatedReport?: PlaygroundGeneratedReport;
+  // X-ray lesion segmentation 결과 (CheXpert 진단 시에만 채워짐). 256x256 PNG data URL.
+  segmentationMaskUrl?: string;
+  // segmentation 모델 정보 (트레이스/디버깅용)
+  segmentationModel?: {
+    label: string;
+    threshold: number;
+  };
 }
 
 const STORAGE_KEY = "helios.playground.report";

@@ -22,6 +22,8 @@ import {
   getPlaygroundModelById,
 } from "../data/playgroundModels";
 import { savePlaygroundReport } from "../lib/playgroundReport";
+import { predictPseudoSegmentationMask } from "../lib/segmentationModel";
+import { SegmentationOverlay } from "../components/SegmentationOverlay";
 import {
   BarChart,
   Bar,
@@ -47,7 +49,14 @@ export function ModelInferencePage() {
   const [backendName, setBackendName] = useState<string>("");
   const [modelLoadError, setModelLoadError] = useState<string | null>(null);
   const [reportReady, setReportReady] = useState(false);
-  
+
+  // Segmentation 상태 (occlusion saliency 로 두 모델 모두 통합)
+  const [segmentationMaskUrl, setSegmentationMaskUrl] = useState<string | null>(null);
+  const [isSegmenting, setIsSegmenting] = useState(false);
+  const [segmentationError, setSegmentationError] = useState<string | null>(null);
+  const [segmentationProgress, setSegmentationProgress] = useState<{ done: number; total: number } | null>(null);
+  const [segmentationTargetClass, setSegmentationTargetClass] = useState<string>("");
+
   // UI용 상태
   const [imageFileName, setImageFileName] = useState<string>("");
 
@@ -142,6 +151,10 @@ export function ModelInferencePage() {
     setLoadedModelId(null);
     setResults([]);
     setReportReady(false);
+    setSegmentationMaskUrl(null);
+    setSegmentationError(null);
+    setSegmentationProgress(null);
+    setSegmentationTargetClass("");
   };
 
   // 2. 이미지 파일 선택 핸들러
@@ -155,6 +168,10 @@ export function ModelInferencePage() {
           setImageFileName(file.name);
           setResults([]);
           setReportReady(false);
+          setSegmentationMaskUrl(null);
+          setSegmentationError(null);
+          setSegmentationProgress(null);
+          setSegmentationTargetClass("");
         }
       };
       reader.readAsDataURL(file);
@@ -266,7 +283,67 @@ export function ModelInferencePage() {
 
       setResults(chartData);
       const report = buildReportDraft(chartData);
+      prediction.dispose();
+      // 주의: tensor 는 occlusion saliency 가 끝날 때까지 살려둠 (아래에서 dispose)
+
+      // 통합 Occlusion-based pseudo-segmentation (두 모델 모두)
+      let segMaskUrl: string | undefined = undefined;
+      let segTargetClass: string | undefined = undefined;
+      let segError: string | null = null;
+
+      const baselineName = selectedModel.inferenceProfile === "chexpert-xray" ? "No Finding" : "No DR";
+      const topAbnormal = chartData.find((c) => c.name !== baselineName);
+      const topAbnormalIdx = topAbnormal ? selectedModel.classes.indexOf(topAbnormal.name) : -1;
+
+      if (topAbnormalIdx >= 0 && imageURL) {
+        const layout: "nchw" | "nhwc" =
+          selectedModel.inferenceProfile === "chexpert-xray" ? "nchw" : "nhwc";
+        const toProbs =
+          selectedModel.inferenceProfile === "chexpert-xray"
+            ? (raw: tf.Tensor) => raw.sigmoid()
+            : (raw: tf.Tensor) => raw.softmax(-1);
+
+        try {
+          setIsSegmenting(true);
+          setSegmentationError(null);
+          setSegmentationProgress({ done: 0, total: 144 });
+          setSegmentationTargetClass(topAbnormal!.name);
+          segTargetClass = topAbnormal!.name;
+
+          segMaskUrl = await predictPseudoSegmentationMask(
+            model,
+            tensor,
+            topAbnormalIdx,
+            layout,
+            toProbs,
+            {
+              gridSize: 12,
+              threshold: 0.4,
+              onProgress: (done, total) => setSegmentationProgress({ done, total }),
+            },
+          );
+          setSegmentationMaskUrl(segMaskUrl);
+        } catch (segErr: any) {
+          console.warn("[Segmentation] 실패:", segErr);
+          segError = segErr?.message ?? String(segErr);
+          setSegmentationError(segError);
+          setSegmentationMaskUrl(null);
+        } finally {
+          setIsSegmenting(false);
+          setSegmentationProgress(null);
+        }
+      } else {
+        setSegmentationMaskUrl(null);
+        setSegmentationTargetClass("");
+      }
+
+      tf.dispose(tensor);
+
       if (imageURL) {
+        const draftWithSeg = segMaskUrl
+          ? `${report.draft}\n\n5. 병변 의심 영역 (Occlusion Pseudo-Segmentation)\n- 분류 모델의 "${segTargetClass}" 클래스 점수에 대한 occlusion saliency 로 의심 영역을 표시했습니다.\n- 리포트 페이지의 진단 이미지 위에 분홍색 오버레이로 확인 가능합니다.\n- 12×12 grid 기반 pseudo-segmentation 이므로 해상도가 거칠 수 있습니다.`
+          : report.draft;
+
         savePlaygroundReport({
           generatedAt: report.generatedAt,
           modelId: selectedModel.id,
@@ -275,14 +352,19 @@ export function ModelInferencePage() {
           imageUrl: imageURL,
           imageFileName,
           results: chartData,
-          clientDraft: report.draft,
+          clientDraft: draftWithSeg,
           generatedReport: undefined,
+          segmentationMaskUrl: segMaskUrl,
+          segmentationModel: segMaskUrl
+            ? {
+                label: `Occlusion pseudo-seg (${segTargetClass})`,
+                threshold: 0.4,
+              }
+            : undefined,
         });
       }
       setReportReady(true);
-      prediction.dispose();
-      tf.dispose(tensor);
-      
+
     } catch (err) {
       console.error(err);
       alert("진단 중 오류가 발생했습니다. 콘솔 로그를 확인해주세요.");
@@ -514,6 +596,69 @@ export function ModelInferencePage() {
                       선택한 모델 <strong>{selectedModel.title}</strong> 기준으로 <strong className="text-red-600">{results[0].name} ({results[0].score.toFixed(1)}%)</strong> 가능성이 가장 높습니다.
                       {selectedModel.inferenceProfile === "chexpert-xray" && results[0].score < 50 && " (확률이 낮아 정상일 가능성이 높습니다.)"}
                     </p>
+                  </div>
+
+                  {/* Segmentation 결과 (CheXpert / DR 모두 occlusion pseudo-seg) */}
+                  <div className="mt-6 p-4 bg-white rounded-lg border border-slate-200">
+                    <h4 className="mb-3 flex items-center gap-2 font-semibold text-slate-950">
+                      <Activity className="h-5 w-5 text-fuchsia-600" />
+                      병변 의심 영역 (Occlusion Pseudo-Segmentation)
+                      {segmentationTargetClass && (
+                        <span className="ml-2 text-xs font-normal text-gray-500">
+                          대상: <strong className="text-rose-600">{segmentationTargetClass}</strong>
+                        </span>
+                      )}
+                    </h4>
+                    {isSegmenting ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-blue-700">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Occlusion saliency 계산 중...
+                          {segmentationProgress && (
+                            <span className="text-xs text-blue-600">
+                              {segmentationProgress.done}/{segmentationProgress.total} forward pass
+                            </span>
+                          )}
+                        </div>
+                        {segmentationProgress && (
+                          <div className="w-full bg-blue-100 rounded-full h-2">
+                            <div
+                              className="bg-blue-500 h-2 rounded-full transition-all"
+                              style={{
+                                width: `${(segmentationProgress.done / Math.max(1, segmentationProgress.total)) * 100}%`,
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    ) : segmentationError ? (
+                      <p className="text-sm text-red-600">Segmentation 실패: {segmentationError}</p>
+                    ) : segmentationMaskUrl && imageURL ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="text-center">
+                          <div className="border rounded-lg overflow-hidden bg-black">
+                            <img
+                              src={imageURL}
+                              alt="원본"
+                              className="w-full h-auto object-contain max-h-[260px]"
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">원본</p>
+                        </div>
+                        <div className="text-center">
+                          <div className="border rounded-lg overflow-hidden bg-black">
+                            <SegmentationOverlay
+                              imageUrl={imageURL}
+                              maskUrl={segmentationMaskUrl}
+                              className="w-full h-auto object-contain max-h-[260px]"
+                            />
+                          </div>
+                          <p className="mt-1 text-xs text-gray-500">병변 의심 영역 오버레이</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-500">진단 후 자동으로 의심 영역을 표시합니다.</p>
+                    )}
                   </div>
                 </div>
               ) : (
