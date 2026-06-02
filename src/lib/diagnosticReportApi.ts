@@ -25,6 +25,12 @@ export interface DiagnosticDraftRequest {
   imageFileName?: string;
   results: PlaygroundResultItem[];
   notes?: string;
+  // X-ray lesion segmentation 동반 실행 여부 (AI 서버 LLM 프롬프트에 반영용)
+  segmentation?: {
+    label: string;
+    threshold: number;
+    detected: boolean;
+  };
 }
 
 export interface DiagnosticDraftResponse {
@@ -50,6 +56,13 @@ export function buildDiagnosticDraftRequest(
     imageFileName: payload.imageFileName,
     results: payload.results,
     notes: payload.notes,
+    segmentation: payload.segmentationModel
+      ? {
+          label: payload.segmentationModel.label,
+          threshold: payload.segmentationModel.threshold,
+          detected: Boolean(payload.segmentationMaskUrl),
+        }
+      : undefined,
   };
 }
 

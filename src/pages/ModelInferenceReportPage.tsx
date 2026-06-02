@@ -6,6 +6,7 @@ import { Button } from "../components/ui/button";
 import { ArrowLeft, Clipboard, Download, FileText, Image as ImageIcon, AlertCircle, Loader2, RefreshCw } from "lucide-react";
 import { clearPlaygroundReport, loadPlaygroundReport, type PlaygroundReportPayload, updatePlaygroundReport } from "../lib/playgroundReport";
 import { createDiagnosticDraft } from "../lib/diagnosticReportApi";
+import { SegmentationOverlay } from "../components/SegmentationOverlay";
 
 export function ModelInferenceReportPage() {
   const navigate = useNavigate();
@@ -126,12 +127,36 @@ export function ModelInferenceReportPage() {
                 진단 이미지
               </h3>
               <div className="rounded-xl overflow-hidden border bg-black min-h-[420px] flex items-center justify-center">
-                <img src={payload.imageUrl} alt="Diagnostic Preview" className="w-full h-full max-h-[680px] object-contain" />
+                {payload.segmentationMaskUrl ? (
+                  <SegmentationOverlay
+                    imageUrl={payload.imageUrl}
+                    maskUrl={payload.segmentationMaskUrl}
+                    className="w-full h-full max-h-[680px] object-contain"
+                  />
+                ) : (
+                  <img
+                    src={payload.imageUrl}
+                    alt="Diagnostic Preview"
+                    className="w-full h-full max-h-[680px] object-contain"
+                  />
+                )}
               </div>
               <div className="mt-4 flex items-center justify-between gap-4 text-sm text-gray-500">
                 <p className="truncate">{payload.imageFileName}</p>
                 <p>{payload.domainLabel}</p>
               </div>
+              {payload.segmentationMaskUrl && (
+                <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                  <p className="font-semibold mb-1">
+                    병변 의심 영역 ({payload.segmentationModel?.label ?? "Pseudo-Segmentation"})
+                  </p>
+                  <p>
+                    위 이미지의 분홍색 영역은 분류 모델 점수에 대한 occlusion saliency
+                    (threshold {payload.segmentationModel?.threshold ?? 0.4}) 기준 의심 영역입니다.
+                    12×12 grid 기반이라 경계는 거칠게 표시됩니다.
+                  </p>
+                </div>
+              )}
             </Card>
           </div>
 
@@ -222,6 +247,16 @@ export function ModelInferenceReportPage() {
                   <p className="font-semibold text-gray-900">
                     {payload.generatedReport?.generatedAt ?? payload.generatedAt}
                   </p>
+                </div>
+                <div className="rounded-lg border bg-gray-50 p-4">
+                  <p className="text-sm text-gray-500 mb-1">병변 영역 분할</p>
+                  {payload.segmentationMaskUrl ? (
+                    <p className="font-semibold text-fuchsia-700">
+                      포함 ({payload.segmentationModel?.label ?? "Lesion Mask"})
+                    </p>
+                  ) : (
+                    <p className="font-semibold text-gray-500">미실행</p>
+                  )}
                 </div>
                 <div className="rounded-lg border bg-gray-50 p-4">
                   <p className="text-sm text-gray-500 mb-3">상위 예측 결과</p>
